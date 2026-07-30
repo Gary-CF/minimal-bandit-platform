@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from algorithms.base import RandomPolicy
+from algorithms.ucb1 import UCB1
 from envs.bernoulli_bandit import BernoulliBandit
 
 def main() -> None:
@@ -12,8 +12,8 @@ def main() -> None:
     # ====================
 
     seed=42
-    arm_means=[0.2,0.5,0.7]
-    horizon=1000
+    arm_means=[0.3,0.5,0.7]
+    horizon=5000
 
     rng=np.random.default_rng(seed)
     num_arms=len(arm_means)
@@ -31,9 +31,8 @@ def main() -> None:
         rng=rng
     )
 
-    algorithm=RandomPolicy(
+    algorithm=UCB1(
         num_arms=num_arms,
-        rng=rng
     )
 
     best_mean=env.best_mean
@@ -49,6 +48,7 @@ def main() -> None:
     total_reward=0
     cumulative_regret=0.0
     records=[]
+    first_actions=[]
 
     # ====================    
     # 4、主循环
@@ -58,6 +58,9 @@ def main() -> None:
 
     for t in range(1,horizon+1):
         action=algorithm.select_action()
+
+        if t<= num_arms:
+            first_actions.append(action)
 
         reward=env.step(action)
 
@@ -85,8 +88,19 @@ def main() -> None:
     # 5、整体测试
     # 一般会整体测试内部轮数是否符合设定，生成遗憾数据表并检查是否单调
     # ====================   
+    
+    assert first_actions==list(range(num_arms))
+
+    assert int(algorithm.counts.sum())==horizon
+
+    assert np.all(algorithm.counts>=1)
 
     assert len(records)==horizon
+
+    assert np.allclose(
+        algorithm.estimated_means,
+        algorithm.reward_sums/ algorithm.counts,
+    )
 
     cumulative_regrets=[float(record["cumulative_regret"])
                         for record in records]
@@ -104,13 +118,36 @@ def main() -> None:
     # 6、输出结果
     # 一般会输出bandit数目，最佳arm和最优方法，总奖励和累计遗憾，记录数，并标识实验全部通过
     # ====================   
+    most_selected_arm=int(
+        np.argmax(algorithm.counts)
+    )
+
     print(f"number of arms:{num_arms}")
+    print(f"horizon:{horizon}")
     print(f"best arm:{best_arm}")
     print(f"best mean:{best_mean:.2f}")
+    print()
+
+    print(f"first actions:{first_actions}")
+    print(f"arm counts:{algorithm.counts}")
+    print(
+        "estimated means",
+        np.round(
+            algorithm.estimated_means,
+            decimals=4,
+        ),
+    )
+    print()
+
+    print(f"most selected arm: {most_selected_arm}")
     print(f"total reward:{total_reward}")
     print(f"cumulative regret:{cumulative_regret:.2f}")
-    print(f"number of records:{len(records)}")
-    print("all tests passed")
+    
+    if most_selected_arm != best_arm:
+        print(
+            "Warning: the most selected arm is not "
+            "the true best arm in this run"
+        )
 
 if __name__ == "__main__":
     main()

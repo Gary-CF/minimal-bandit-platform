@@ -32,7 +32,7 @@ class RandomPolicy(BanditAlgorithm):
         self.rng=rng
 
     def select_action(self)->int:
-        action=self.rng.integers(self.num_arms)
+        action=int(self.rng.integers(self.num_arms))
         return action
     def update(self,action:int,reward:int)->None:
         pass
