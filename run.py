@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import argparse
+import csv
+import json
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 
 from algorithms.base import RandomPolicy
@@ -7,26 +13,83 @@ from algorithms.ucb1 import UCB1
 from algorithms.thompson_sampling import ThompsonSampling
 from envs.bernoulli_bandit import BernoulliBandit
 
-def main() -> None:
+ExperimentRecord = dict[
+     str,
+     str | int | float,
+]
+
+def parse_args()->argparse.Namespace:
+    parser=argparse.ArgumentParser(
+            description="Run multi-armed bandit experiments"
+            )
+    parser.add_argument(
+            "--config",
+            type=str,
+            required=True,
+            help="Path to the JSON experiment configuraion.",
+            )
+    return parser.parse_args()
+
+def load_config(
+          config_path:str,
+)->dict[str,Any]:
+    with open(
+          config_path,
+          mode="r",
+          encoding="utf-8",
+     ) as file:
+          config=json.load(file)
+
+    return config
+
+def create_algorithm(
+        algorithm_name:str,
+        num_arms:int,
+        rng:np.random.Generator,
+)->RandomPolicy | UCB1 | ThompsonSampling:
+    if algorithm_name=="random":
+            return RandomPolicy(
+                num_arms=num_arms,
+                rng=rng,
+            )
+    if algorithm_name=="ucb1":
+            return UCB1(
+                num_arms=num_arms
+            )
+    if algorithm_name=="thompson_sampling":
+            return ThompsonSampling(
+                num_arms=num_arms,
+                rng=rng,
+            )
+    raise ValueError(
+                f"unknown algorithm: {algorithm_name}"
+            )
+
+
+
+def run_single_experiment(
+        seed:int,
+        arm_means:list[float],
+        horizon:int,
+        algorithm_name:str,
+) -> list[ExperimentRecord]:
     # ====================
     # 1、实验参数
     # 一般需要确认随机种子，bandit方法集，观察轮数，以此确定随机数生成器，bandit数
     # ====================
 
-    seed=42
-    arm_means=[0.3,0.5,0.7]
-    horizon=5000
+
 
     num_arms=len(arm_means)
 
-    algorithm_name="ucb1"
+
 
     seed_sequence=np.random.SeedSequence(seed)
     env_seed,algorithm_seed = seed_sequence.spawn(2)
 
     env_rng=np.random.default_rng(env_seed)
     algorithm_rng=np.random.default_rng(algorithm_seed)
-   
+
     # ====================
     # 2、创建环境和算法
     # env表示的是本次bandit实验所处环境：一般会确定bandit背景，给出奖励和伪遗憾
@@ -39,24 +102,8 @@ def main() -> None:
         rng=env_rng
     )
 
-    if algorithm_name=="random":
-        algorithm=RandomPolicy(
-            num_arms=num_arms,
-            rng=algorithm_rng,
-        )
-    elif algorithm_name=="ucb1":
-        algorithm = UCB1(
-            num_arms=num_arms
-        )
-    elif algorithm_name=="thompson":
-        algorithm=ThompsonSampling(
-            num_arms=num_arms,
-            rng=algorithm_rng,
-        )
-    else:
-        raise ValueError(
-            f"unknown algorithm: {algorithm_name}"
-        )
+    algorithm=create_algorithm(
+         algorithm_name=algorithm_name,num_arms=num_arms,rng=algorithm_rng)
 
     best_mean=env.best_mean
     best_arm=int(np.argmax(env.arm_means))
@@ -67,10 +114,10 @@ def main() -> None:
     # 实验中应当跟踪的状态一般有总奖励，累计遗憾和实验记录
     # 试验记录通常包括：当前轮数、采取行动、获得奖励、即时遗憾、累计遗憾
     # ====================
-    
+
     total_reward=0
     cumulative_regret=0.0
-    records=[]
+    records: list[ExperimentRecord]=[]
     first_actions=[]
 
     action_counts=np.zeros(
@@ -83,7 +130,7 @@ def main() -> None:
         dtype=float,
     )
 
-    # ====================    
+    # ====================
     # 4、主循环
     # 进行指定轮数的循环
     # 每一轮：动作选择->奖励反馈->策略更新->遗憾统计->状态跟踪
@@ -109,11 +156,13 @@ def main() -> None:
 
         records.append(
             {
+                "algorithm": algorithm_name,
+                "seed":seed,
                 "step":t,
-                "action":action,
-                "reward":reward,
-                "instant_regret":instant_regret,
-                "cumulative_regret":cumulative_regret,
+                "action":int(action),
+                "reward":int(reward),
+                "instant_regret":float(instant_regret),
+                "cumulative_regret":float(cumulative_regret),
 
             }
         )
@@ -197,7 +246,7 @@ def main() -> None:
 
     # ---------- Thompson Sampling 专属测试 ----------
 
-    if algorithm_name == "thompson":
+    if algorithm_name == "thompson_sampling":
         assert isinstance(algorithm ,ThompsonSampling)
         # alpha_i - 1 应当等于第 i 个臂的成功次数。
         assert np.allclose(
@@ -229,73 +278,123 @@ def main() -> None:
             action_counts,
         )
 
-   # ====================
-    # 6、输出结果
-    # 一般会输出：
-    # 算法名称、bandit 数目、最佳 arm、
-    # 总奖励、累计遗憾、选择次数和经验均值
+    # ====================
+    # 6、检查实验结果
     # ====================
 
     most_selected_arm = int(
-        np.argmax(action_counts)
-    )
-
-    print(f"algorithm: {algorithm_name}")
-    print(f"number of arms: {num_arms}")
-    print(f"horizon: {horizon}")
-    print(f"best arm: {best_arm}")
-    print(f"best mean: {best_mean:.2f}")
-    print()
-
-    print(f"first actions: {first_actions}")
-    print(f"arm counts: {action_counts}")
-    print(
-        "empirical means:",
-        np.round(
-            empirical_means,
-            decimals=4,
-        ),
-    )
-
-    if algorithm_name == "thompson":
-        assert isinstance(algorithm ,ThompsonSampling)
-        posterior_means = (
-            algorithm.alpha
-            / (
-                algorithm.alpha
-                + algorithm.beta
-            )
-        )
-
-        print(
-            "posterior means:",
-            np.round(
-                posterior_means,
-                decimals=4,
-            ),
-        )
-        print(f"alpha: {algorithm.alpha}")
-        print(f"beta: {algorithm.beta}")
-
-    print()
-
-    print(
-        f"most selected arm: "
-        f"{most_selected_arm}"
-    )
-    print(f"total reward: {total_reward}")
-    print(
-        f"cumulative regret: "
-        f"{cumulative_regret:.2f}"
-    )
+    np.argmax(action_counts)
+)
 
     if most_selected_arm != best_arm:
         print(
-            "Warning: the most selected arm is not "
-            "the true best arm in this run"
-        )
+        f"warning: {algorithm_name} "
+        "did not select the optimal arm most often"
+    )
 
-    print("all checks passed")
+    return records
+
+
+def save_records(
+          records:list[ExperimentRecord],
+          output_path:Path,
+)->None:
+     fieldnames=[
+        "algorithm",
+        "seed",
+        "step",
+        "action",
+        "reward",
+        "instant_regret",
+        "cumulative_regret",
+     ]
+
+     output_path.parent.mkdir(
+          parents=True,exist_ok=True,
+     )
+
+     with output_path.open(
+          mode="w",
+          newline="",
+          encoding="utf-8",
+     ) as file:
+          writer = csv.DictWriter(
+               file,
+               fieldnames=fieldnames,
+          )
+
+          writer.writeheader()
+          writer.writerows(records)
+
+
+
+
+
+
+def main()->None:
+    args=parse_args()
+
+    config=load_config(
+         config_path=args.config
+    )
+
+    arm_means=[
+         float(mean) for mean in config["arm_means"]
+    ]
+
+    horizon=int(config["horizon"])
+
+    algorithms=[
+         str(name) for name in config["algorithms"]
+    ]
+
+    seeds=[
+         int(seed) for seed in config["seeds"]
+    ]
+
+    num_experiments=len(algorithms)*len(seeds)
+
+    print(
+         f"running {len(algorithms)} algorithms"
+         f" x {len(seeds)} seeds"
+         f" = {num_experiments} experiments"
+    )
+    print()
+
+    results_dir=Path("results")
+
+    for algorithm_name in algorithms:
+        for seed in seeds:
+            print("="*60)
+            print(
+              f"running algorithm={algorithm_name},"
+              f"seed={seed}"
+         )
+            print("="*60)
+
+            records=run_single_experiment(
+            seed=seed,
+            arm_means=arm_means,
+            horizon=horizon,
+            algorithm_name=algorithm_name
+         )
+
+            output_path=(
+                 results_dir/f"{algorithm_name}_seed_{seed}.csv"
+            )
+
+            save_records(
+                 records=records,
+                 output_path=output_path
+            )
+
+            print(
+                 f"saved results to:"
+                 f"{output_path}"
+            )
+
+            print()
+
 
 if __name__ == "__main__":
     main()
