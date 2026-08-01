@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import numpy as np
 
+from algorithms.base import RandomPolicy
 from algorithms.ucb1 import UCB1
+from algorithms.thompson_sampling import ThompsonSampling
 from envs.bernoulli_bandit import BernoulliBandit
 
 def main() -> None:
@@ -15,9 +17,15 @@ def main() -> None:
     arm_means=[0.3,0.5,0.7]
     horizon=5000
 
-    rng=np.random.default_rng(seed)
     num_arms=len(arm_means)
-    
+
+    algorithm_name="ucb1"
+
+    seed_sequence=np.random.SeedSequence(seed)
+    env_seed,algorithm_seed = seed_sequence.spawn(2)
+
+    env_rng=np.random.default_rng(env_seed)
+    algorithm_rng=np.random.default_rng(algorithm_seed)
    
     # ====================
     # 2、创建环境和算法
@@ -28,12 +36,27 @@ def main() -> None:
 
     env=BernoulliBandit(
         arm_means=arm_means,
-        rng=rng
+        rng=env_rng
     )
 
-    algorithm=UCB1(
-        num_arms=num_arms,
-    )
+    if algorithm_name=="random":
+        algorithm=RandomPolicy(
+            num_arms=num_arms,
+            rng=algorithm_rng,
+        )
+    elif algorithm_name=="ucb1":
+        algorithm = UCB1(
+            num_arms=num_arms
+        )
+    elif algorithm_name=="thompson":
+        algorithm=ThompsonSampling(
+            num_arms=num_arms,
+            rng=algorithm_rng,
+        )
+    else:
+        raise ValueError(
+            f"unknown algorithm: {algorithm_name}"
+        )
 
     best_mean=env.best_mean
     best_arm=int(np.argmax(env.arm_means))
@@ -49,6 +72,16 @@ def main() -> None:
     cumulative_regret=0.0
     records=[]
     first_actions=[]
+
+    action_counts=np.zeros(
+        num_arms,
+        dtype=int,
+    )
+
+    reward_sums=np.zeros(
+        num_arms,
+        dtype=float,
+    )
 
     # ====================    
     # 4、主循环
@@ -70,6 +103,10 @@ def main() -> None:
 
         total_reward+=reward
         cumulative_regret+=instant_regret
+
+        action_counts[action]+=1
+        reward_sums[action]+=reward
+
         records.append(
             {
                 "step":t,
@@ -84,70 +121,181 @@ def main() -> None:
         assert reward in (0,1)
         assert instant_regret>=0
 
-    # ====================   
+   # ====================
     # 5、整体测试
-    # 一般会整体测试内部轮数是否符合设定，生成遗憾数据表并检查是否单调
-    # ====================   
-    
-    assert first_actions==list(range(num_arms))
+    # 首先检查所有算法都应当满足的公共性质，
+    # 然后分别检查不同算法自己的内部状态
+    # ====================
 
-    assert int(algorithm.counts.sum())==horizon
+    # ---------- 公共测试 ----------
 
-    assert np.all(algorithm.counts>=1)
+    assert len(records) == horizon
 
-    assert len(records)==horizon
+    assert int(action_counts.sum()) == horizon
 
-    assert np.allclose(
-        algorithm.estimated_means,
-        algorithm.reward_sums/ algorithm.counts,
+    assert np.all(action_counts >= 0)
+
+    assert np.isclose(
+        reward_sums.sum(),
+        total_reward,
     )
 
-    cumulative_regrets=[float(record["cumulative_regret"])
-                        for record in records]
+    cumulative_regrets = [
+        float(record["cumulative_regret"])
+        for record in records
+    ]
 
     assert all(
-            previous <= current
-            for previous,current in zip(
-                cumulative_regrets[:],
-                cumulative_regrets[1:],
-            )
-        
+        previous <= current
+        for previous, current in zip(
+            cumulative_regrets,
+            cumulative_regrets[1:],
+        )
     )
 
-    # ====================   
+    empirical_means = np.divide(
+        reward_sums,
+        action_counts,
+        out=np.zeros(
+            num_arms,
+            dtype=float,
+        ),
+        where=action_counts > 0,
+    )
+
+    # ---------- UCB1 专属测试 ----------
+
+    if algorithm_name == "ucb1":
+        assert isinstance(algorithm ,UCB1)
+        # UCB1 的初始化阶段会依次选择所有臂。
+        assert first_actions == list(
+            range(num_arms)
+        )
+
+        assert int(
+            algorithm.counts.sum()
+        ) == horizon
+
+        assert np.all(
+            algorithm.counts >= 1
+        )
+
+        assert np.array_equal(
+            algorithm.counts,
+            action_counts,
+        )
+
+        assert np.allclose(
+            algorithm.reward_sums,
+            reward_sums,
+        )
+
+        assert np.allclose(
+            algorithm.estimated_means,
+            empirical_means,
+        )
+
+    # ---------- Thompson Sampling 专属测试 ----------
+
+    if algorithm_name == "thompson":
+        assert isinstance(algorithm ,ThompsonSampling)
+        # alpha_i - 1 应当等于第 i 个臂的成功次数。
+        assert np.allclose(
+            algorithm.alpha - 1,
+            reward_sums,
+        )
+
+        # beta_i - 1 应当等于第 i 个臂的失败次数。
+        assert np.allclose(
+            algorithm.beta - 1,
+            action_counts - reward_sums,
+        )
+
+        # 初始 alpha、beta 都是 1，
+        # 更新后它们不应小于 1。
+        assert np.all(
+            algorithm.alpha >= 1
+        )
+
+        assert np.all(
+            algorithm.beta >= 1
+        )
+
+        # 每选择一次臂，alpha 或 beta 总共增加一次。
+        assert np.allclose(
+            algorithm.alpha
+            + algorithm.beta
+            - 2,
+            action_counts,
+        )
+
+   # ====================
     # 6、输出结果
-    # 一般会输出bandit数目，最佳arm和最优方法，总奖励和累计遗憾，记录数，并标识实验全部通过
-    # ====================   
-    most_selected_arm=int(
-        np.argmax(algorithm.counts)
+    # 一般会输出：
+    # 算法名称、bandit 数目、最佳 arm、
+    # 总奖励、累计遗憾、选择次数和经验均值
+    # ====================
+
+    most_selected_arm = int(
+        np.argmax(action_counts)
     )
 
-    print(f"number of arms:{num_arms}")
-    print(f"horizon:{horizon}")
-    print(f"best arm:{best_arm}")
-    print(f"best mean:{best_mean:.2f}")
+    print(f"algorithm: {algorithm_name}")
+    print(f"number of arms: {num_arms}")
+    print(f"horizon: {horizon}")
+    print(f"best arm: {best_arm}")
+    print(f"best mean: {best_mean:.2f}")
     print()
 
-    print(f"first actions:{first_actions}")
-    print(f"arm counts:{algorithm.counts}")
+    print(f"first actions: {first_actions}")
+    print(f"arm counts: {action_counts}")
     print(
-        "estimated means",
+        "empirical means:",
         np.round(
-            algorithm.estimated_means,
+            empirical_means,
             decimals=4,
         ),
     )
+
+    if algorithm_name == "thompson":
+        assert isinstance(algorithm ,ThompsonSampling)
+        posterior_means = (
+            algorithm.alpha
+            / (
+                algorithm.alpha
+                + algorithm.beta
+            )
+        )
+
+        print(
+            "posterior means:",
+            np.round(
+                posterior_means,
+                decimals=4,
+            ),
+        )
+        print(f"alpha: {algorithm.alpha}")
+        print(f"beta: {algorithm.beta}")
+
     print()
 
-    print(f"most selected arm: {most_selected_arm}")
-    print(f"total reward:{total_reward}")
-    print(f"cumulative regret:{cumulative_regret:.2f}")
-    
+    print(
+        f"most selected arm: "
+        f"{most_selected_arm}"
+    )
+    print(f"total reward: {total_reward}")
+    print(
+        f"cumulative regret: "
+        f"{cumulative_regret:.2f}"
+    )
+
     if most_selected_arm != best_arm:
         print(
             "Warning: the most selected arm is not "
             "the true best arm in this run"
         )
+
+    print("all checks passed")
 
 if __name__ == "__main__":
     main()
