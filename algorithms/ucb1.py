@@ -69,7 +69,7 @@ class UCB1(BanditAlgorithm):
     def update(
             self,
             action:int,
-            reward:int,
+            reward:float,
     )->None:
         """
         根据本轮观察到的奖励更新统计量

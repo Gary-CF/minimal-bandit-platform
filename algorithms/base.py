@@ -11,7 +11,7 @@ class BanditAlgorithm:
         """
         raise NotImplementedError
 
-    def update(self,action:int,reward:int)->None:
+    def update(self,action:int,reward:float)->None:
         """
         根据本轮动作和奖励更新算法状态
         """
@@ -34,5 +34,5 @@ class RandomPolicy(BanditAlgorithm):
     def select_action(self)->int:
         action=int(self.rng.integers(self.num_arms))
         return action
-    def update(self,action:int,reward:int)->None:
+    def update(self,action:int,reward:float)->None:
         pass
