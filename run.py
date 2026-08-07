@@ -8,10 +8,15 @@ from typing import Any
 
 import numpy as np
 
-from algorithms.base import RandomPolicy
+from algorithms.base import (BanditAlgorithm,RandomPolicy)
 from algorithms.ucb1 import UCB1
 from algorithms.thompson_sampling import ThompsonSampling
+from algorithms.ucb_v import UCBV
+
 from envs.bernoulli_bandit import BernoulliBandit
+from envs.gaussian_bandit import GaussianBandit
+
+BanditEnvironment= GaussianBandit | BernoulliBandit
 
 ExperimentRecord = dict[
      str,
@@ -42,11 +47,151 @@ def load_config(
 
     return config
 
+def normalize_config(raw_config:dict[str,Any],)->dict[str,Any]:
+     experiment_name=str(raw_config["experiment_name"])
+
+     if not experiment_name:
+          raise ValueError("experiment_name must not be empty")
+
+     environment_config = dict(raw_config["environment"])
+
+     raw_algorithms=list(raw_config["algorithms"])
+
+     algorithms:list[dict[str,Any]]=[]
+
+     for raw_algorithm in raw_algorithms:
+          #兼容旧配置
+          #“ucb1" -> {"name":"ucb1","parameters":{}}
+          if isinstance(raw_algorithm,str):
+               algorithms.append(
+                    {
+                         "name":raw_algorithm,
+                         "parameters":{},
+                    }
+               )
+               continue
+          if not isinstance(raw_algorithm,dict,):
+               raise ValueError(
+                    "each algorithm config must be"
+                    "a string or a dictionary"
+               )
+
+          algorithms.append(
+               {
+                    "name":str(raw_algorithm["name"]),
+                    "parameters":dict(raw_algorithm.get("parameters",{},))
+               }
+          )
+
+     if "horizons" in raw_config:
+               horizons=[
+                    int(horizon) for horizon in raw_config["horizons"]
+               ]
+     else:
+               horizons=[
+                    int(raw_config["horizon"])
+               ]
+     seeds=[int(seed) for seed in raw_config["seeds"]]
+
+     if len(algorithms)==0:
+               raise ValueError("algorithms must not be empty")
+     if len(horizons)==0:
+               raise ValueError("horizons must not be empty")
+     if any(horizon <=0 for horizon in horizons):
+               raise ValueError("all horizons must be positive")
+     if len(seeds)==0:
+               raise ValueError("seeds must not be empty")
+     return{
+               "experiment_name":experiment_name,
+               "environment":environment_config,
+               "algorithms":algorithms,
+               "horizons":horizons,
+               "seeds":seeds,
+          }
+          
+
+
+def create_environment(
+          environment_config:dict[str,Any],
+          rng:np.random.Generator
+)->BanditEnvironment:
+     environment_name=str(
+          environment_config["name"]
+     )
+
+     arm_means=[
+          float(mean) for mean in environment_config["arm_means"]
+     ]
+
+     if environment_name=="bernoulli":
+          return BernoulliBandit(
+               arm_means=arm_means,
+                rng=rng,
+          )
+     if environment_name=="gaussian":
+          arm_stds=[
+               float(std) for std in environment_config["arm_stds"]
+          ]
+          return GaussianBandit(
+               arm_means=arm_means,
+               arm_stds=arm_stds,
+               rng=rng,
+          )
+     raise ValueError(
+          f"unknown environment:{environment_name}"
+     )
+
+
+def validate_algorithm_environment(
+          algorithm_name:str,
+          env:BanditEnvironment,
+)->None:
+     """
+     检查当前算法实现是否适用于当前环境。
+
+     这里检查的是“当前代码实现”的适用范围，
+     而不是算法家族在理论上的全部适用范围。
+     """
+
+     if algorithm_name=="random":
+          return
+
+     if algorithm_name=="ucb1":
+          if isinstance(env,BernoulliBandit):
+               return
+          raise ValueError(
+               "the current UCB1 implementation assumes"
+               "rewards are bounded in [0,1]"
+               f"it cannot be used with {type(env).__name__}"
+          )
+     if algorithm_name=="thompson_sampling":
+          if isinstance(env,BernoulliBandit):
+               return
+          raise ValueError(
+            "the current ThompsonSampling implementation "
+            "uses a Beta-Bernoulli posterior; "
+            f"it cannot be used with {type(env).__name__}"
+        )
+     if algorithm_name=="ucb_v":
+          if isinstance(env,BernoulliBandit):
+               return
+          raise ValueError(
+               "the current UCBV implementation assumes "
+                "rewards are bounded in [0, 1]; "
+                f"it cannot be used with {type(env).__name__}"
+          )
+
+
+
+
 def create_algorithm(
-        algorithm_name:str,
+        algorithm_config:dict[str,Any],
         num_arms:int,
         rng:np.random.Generator,
-)->RandomPolicy | UCB1 | ThompsonSampling:
+)->BanditAlgorithm:
+    algorithm_name=str(algorithm_config["name"])
+    parameters=dict(algorithm_config.get("parameters",{},))
+
     if algorithm_name=="random":
             return RandomPolicy(
                 num_arms=num_arms,
@@ -61,6 +206,14 @@ def create_algorithm(
                 num_arms=num_arms,
                 rng=rng,
             )
+    if algorithm_name=="ucb_v":
+         reward_range=float(
+              parameters.get("reward_range",1.0)
+         )
+         return UCBV(
+              num_arms=num_arms,
+              reward_range=reward_range,
+         )
     raise ValueError(
                 f"unknown algorithm: {algorithm_name}"
             )
@@ -69,26 +222,33 @@ def create_algorithm(
 
 def run_single_experiment(
         seed:int,
-        arm_means:list[float],
+        environment_config:dict[str,Any],
         horizon:int,
-        algorithm_name:str,
+        algorithm_config:dict[str,Any]
 ) -> list[ExperimentRecord]:
     # ====================
     # 1、实验参数
     # 一般需要确认随机种子，bandit方法集，观察轮数，以此确定随机数生成器，bandit数
     # ====================
 
-
-
-    num_arms=len(arm_means)
-
-
+    algorithm_name=str(algorithm_config["name"])
 
     seed_sequence=np.random.SeedSequence(seed)
     env_seed,algorithm_seed = seed_sequence.spawn(2)
 
     env_rng=np.random.default_rng(env_seed)
     algorithm_rng=np.random.default_rng(algorithm_seed)
+
+    env=create_environment(
+         environment_config=environment_config,rng=env_rng,
+    )
+
+    validate_algorithm_environment(
+         algorithm_name=algorithm_name,
+         env=env,
+    )
+
+    num_arms=len(env.arm_means)
 
     # ====================
     # 2、创建环境和算法
@@ -97,15 +257,10 @@ def run_single_experiment(
     # 当前的env和algorithm都需要随机数生成器
     # ====================
 
-    env=BernoulliBandit(
-        arm_means=arm_means,
-        rng=env_rng
-    )
 
     algorithm=create_algorithm(
-         algorithm_name=algorithm_name,num_arms=num_arms,rng=algorithm_rng)
+         algorithm_config=algorithm_config,num_arms=num_arms,rng=algorithm_rng)
 
-    best_mean=env.best_mean
     best_arm=int(np.argmax(env.arm_means))
 
 
@@ -115,7 +270,7 @@ def run_single_experiment(
     # 试验记录通常包括：当前轮数、采取行动、获得奖励、即时遗憾、累计遗憾
     # ====================
 
-    total_reward=0
+    total_reward=0.0
     cumulative_regret=0.0
     records: list[ExperimentRecord]=[]
     first_actions=[]
@@ -156,19 +311,29 @@ def run_single_experiment(
 
         records.append(
             {
-                "algorithm": algorithm_name,
-                "seed":seed,
-                "step":t,
-                "action":int(action),
-                "reward":int(reward),
-                "instant_regret":float(instant_regret),
-                "cumulative_regret":float(cumulative_regret),
-
-            }
+    "environment": str(
+        environment_config["name"]
+    ),
+    "algorithm": algorithm_name,
+    "horizon": horizon,
+    "seed": seed,
+    "step": t,
+    "action": int(action),
+    "reward": float(reward),
+    "instant_regret": float(
+        instant_regret
+    ),
+    "cumulative_regret": float(
+        cumulative_regret
+    ),
+}
         )
         assert 0<=action<num_arms
-        assert reward in (0,1)
+        assert np.isfinite(reward)
         assert instant_regret>=0
+
+        if isinstance(env,BernoulliBandit):
+             assert reward in (0.0,1.0)
 
    # ====================
     # 5、整体测试
@@ -277,7 +442,42 @@ def run_single_experiment(
             - 2,
             action_counts,
         )
+    # ---------- UCB-V 专属测试 ----------
+    if algorithm_name == "ucb_v":
+        assert isinstance(
+        algorithm,
+        UCBV,
+    )
 
+    # UCB-V 的初始化阶段应依次选择所有臂。
+        assert first_actions == list(
+        range(num_arms)
+    )
+
+    # 算法总更新次数应等于实验 horizon。
+        assert int(
+        algorithm.counts.sum()
+    ) == horizon
+
+    # 初始化后，每个臂至少被选择一次。
+        assert np.all(
+        algorithm.counts >= 1
+    )
+
+    # 算法内部计数应与实验端计数一致。
+        assert np.array_equal(
+        algorithm.counts,
+        action_counts,
+    )
+
+    # 算法内部奖励和应与实验端一致。
+        assert np.allclose(
+        algorithm.reward_sums,
+        reward_sums,
+    )
+
+
+    
     # ====================
     # 6、检查实验结果
     # ====================
@@ -299,15 +499,17 @@ def save_records(
           records:list[ExperimentRecord],
           output_path:Path,
 )->None:
-     fieldnames=[
-        "algorithm",
-        "seed",
-        "step",
-        "action",
-        "reward",
-        "instant_regret",
-        "cumulative_regret",
-     ]
+     fieldnames = [
+    "environment",
+    "algorithm",
+    "horizon",
+    "seed",
+    "step",
+    "action",
+    "reward",
+    "instant_regret",
+    "cumulative_regret",
+]
 
      output_path.parent.mkdir(
           parents=True,exist_ok=True,
@@ -327,74 +529,114 @@ def save_records(
           writer.writerows(records)
 
 
+def save_config_snapshot(config:dict[str,Any],output_path:Path)->None:
+     output_path.parent.mkdir(parents=True,exist_ok=True)
 
+     with output_path.open(mode="w",encoding="utf-8",)as file:
+          json.dump(
+               config,file,indent=2,ensure_ascii=False,
+          )
 
 
 
 def main()->None:
     args=parse_args()
 
-    config=load_config(
+    raw_config=load_config(
          config_path=args.config
     )
 
-    arm_means=[
-         float(mean) for mean in config["arm_means"]
-    ]
+    config=normalize_config(raw_config)
 
-    horizon=int(config["horizon"])
+    experiment_name=str(
+         config["experiment_name"]
+    )
 
-    algorithms=[
-         str(name) for name in config["algorithms"]
-    ]
+    environment_config=dict(
+         config["environment"]
+    )
+
+    horizons=[int(horizon) for horizon in config["horizons"]]
+
+    algorithms=config["algorithms"]
+    
 
     seeds=[
          int(seed) for seed in config["seeds"]
     ]
 
-    num_experiments=len(algorithms)*len(seeds)
+    environment_name = str(
+        environment_config["name"]
+    )
+
+    results_dir = (
+        Path("results")
+        / experiment_name
+    )
+
+    save_config_snapshot(
+        config=config,
+        output_path=(
+            results_dir
+            / "config_snapshot.json"
+        ),
+    )
+
+    num_experiments=len(algorithms)*len(seeds)*len(horizons)
 
     print(
-         f"running {len(algorithms)} algorithms"
-         f" x {len(seeds)} seeds"
-         f" = {num_experiments} experiments"
+        f"running {num_experiments} experiments"
     )
-    print()
 
-    results_dir=Path("results")
+    
 
-    for algorithm_name in algorithms:
-        for seed in seeds:
-            print("="*60)
-            print(
-              f"running algorithm={algorithm_name},"
-              f"seed={seed}"
-         )
-            print("="*60)
+    for algorithm_config in algorithms:
+        algorithm_name=str(algorithm_config["name"])
 
-            records=run_single_experiment(
-            seed=seed,
-            arm_means=arm_means,
-            horizon=horizon,
-            algorithm_name=algorithm_name
-         )
+        for horizon in horizons:
+             for seed in seeds:
+                print(
+                    f"running "
+                    f"experiment={experiment_name}, "
+                    f"environment={environment_name}, "
+                    f"algorithm={algorithm_name}, "
+                    f"horizon={horizon}, "
+                    f"seed={seed}"
+                )
 
-            output_path=(
-                 results_dir/f"{algorithm_name}_seed_{seed}.csv"
-            )
+                records = run_single_experiment(
+                    seed=seed,
+                    environment_config=(
+                        environment_config
+                    ),
+                    horizon=horizon,
+                    algorithm_config=(
+                        algorithm_config
+                    ),
+                )
 
-            save_records(
-                 records=records,
-                 output_path=output_path
-            )
+                filename = (
+                    f"{environment_name}_"
+                    f"{algorithm_name}_"
+                    f"T{horizon}_"
+                    f"seed{seed}.csv"
+                )
 
-            print(
-                 f"saved results to:"
-                 f"{output_path}"
-            )
+                output_path = (
+                    results_dir
+                    / filename
+                )
 
-            print()
+                save_records(
+                    records=records,
+                    output_path=output_path,
+                )
+                         
 
 
 if __name__ == "__main__":
     main()
+
+
+        
+                         

@@ -1,8 +1,8 @@
 {
-  "experiment_name": "easy_gap",
+  "experiment_name": "different_horizon",
   "environment": {
     "name": "bernoulli",
-    "arm_means": [0.2, 0.5, 0.7]
+    "arm_means": [0.45, 0.48, 0.5]
   },
   "algorithms": [
     {
@@ -24,6 +24,6 @@
       "parameters": {}
     }
   ],
-  "horizon": 5000,
-  "seeds": [0, 1, 2, 3, 4]
+  "horizons": [1000, 5000, 20000],
+  "seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 }

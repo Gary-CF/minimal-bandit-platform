@@ -14,3 +14,6 @@ figures/
 .vscode/
 .DS_Store
 
+# Other files
+*:Zone.Identifier
+
