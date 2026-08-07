@@ -1,177 +1,243 @@
 # Minimal Bandit Platform
 
-A minimal and reproducible experimental platform for studying stochastic multi-armed bandit algorithms.
+A small, transparent, and reproducible experimental platform for studying stochastic multi-armed bandit algorithms.
 
-The project provides:
+> **Status:** Bandit Platform **v1.0 is under final validation**.
+> The earlier v0.1 milestone completed the minimal Bernoulli experiment loop. The current v1.0 development stage adds a second environment, a variance-aware algorithm, tests, standard benchmarks, compatibility checks, and an experiment report.
 
-- a Bernoulli bandit environment;
-- several bandit algorithms with a common interface;
+## What the project currently provides
+
+- Bernoulli and Gaussian bandit environments;
+- Random Policy, UCB1, UCB-V, and Bernoulli Thompson Sampling;
+- a common algorithm interaction interface;
 - JSON-based experiment configuration;
-- reproducible multi-seed experiments;
+- single- or multi-horizon experiments;
+- reproducible multi-seed execution;
+- explicit environment–algorithm compatibility checks;
 - step-level CSV logging;
-- mean cumulative regret visualization;
-- a one-command reproduction script.
+- regret aggregation and benchmark figures;
+- a minimal automated test suite;
+- smoke-test configurations;
+- a one-command reproduction entry point;
+- a human-readable v1.0 benchmark report.
 
-## Implemented Algorithms
+## Implemented algorithms
 
-The following algorithms are currently implemented:
+| Algorithm | Main idea | Current implementation scope |
+|---|---|---|
+| Random Policy | Uniform random action selection | Baseline for supported environments |
+| UCB1 | Empirical mean plus a Hoeffding/sub-Gaussian confidence bonus | Use only with configurations accepted by the compatibility checker |
+| UCB-V | Empirical mean plus an empirical-Bernstein-style, variance-aware bonus | Current implementation assumes bounded rewards and is used with Bernoulli rewards |
+| Thompson Sampling | Beta posterior sampling | Current implementation is Beta–Bernoulli and therefore Bernoulli-only |
 
-- Random Policy
-- UCB1
-- Thompson Sampling
+The compatibility checker describes the scope of the **current code**, not the full theoretical scope of each algorithm family.
 
-The default experiment compares:
+## Environments
 
-- UCB1
-- Thompson Sampling
+### Bernoulli Bandit
 
-## Environment
-
-The environment is a Bernoulli multi-armed bandit.
-
-Each arm \(i\) has an unknown reward probability \(\mu_i\). After selecting arm \(i\), the environment returns:
+Each arm \(i\) has an unknown mean \(\mu_i \in [0,1]\). After selecting arm \(i\),
 
 \[
 X_{t,i} \sim \operatorname{Bernoulli}(\mu_i).
 \]
 
-The instantaneous pseudo-regret is:
+### Gaussian Bandit
+
+Each arm \(i\) is configured with a mean \(\mu_i\) and standard deviation \(\sigma_i\):
 
 \[
-r_t = \mu^\star - \mu_{A_t},
+X_{t,i} \sim \mathcal{N}(\mu_i,\sigma_i^2).
 \]
 
-where \(\mu^\star\) is the largest arm mean and \(A_t\) is the arm selected at step \(t\).
+The Gaussian environment is useful for separating bounded-reward assumptions from sub-Gaussian noise assumptions. Not every current algorithm implementation is compatible with it.
 
-The cumulative pseudo-regret is:
+## Regret
+
+The instantaneous pseudo-regret is
 
 \[
-R_T = \sum_{t=1}^{T} r_t.
+r_t = \mu^\star-\mu_{A_t},
 \]
 
-## Project Structure
+where \(\mu^\star=\max_i\mu_i\) and \(A_t\) is the selected arm.
+
+The cumulative pseudo-regret is
+
+\[
+R_T=\sum_{t=1}^{T}r_t.
+\]
+
+Pseudo-regret depends on the true arm means and the selected action, rather than on the realized reward noise.
+
+## Project structure
 
 ```text
 .
 ├── algorithms/
 │   ├── base.py
 │   ├── thompson_sampling.py
-│   └── ucb1.py
+│   ├── ucb1.py
+│   └── ucb_v.py
 ├── configs/
-│   └── basic.json
+│   ├── basic.json
+│   ├── config_system_smoke.json
+│   ├── different_horizon.json
+│   ├── easy_gap.json
+│   ├── hard_gap.json
+│   └── ucb_v_smoke.json
 ├── envs/
-│   └── bernoulli_bandit.py
+│   ├── bernoulli_bandit.py
+│   └── gaussian_bandit.py
+├── figures/
 ├── plots/
-│   └── plot_regret.py
-├── .gitignore
+├── reports/
+│   └── benchmark_v1_0.md
+├── results/
+├── tests/
+│   ├── test_environment.py
+│   ├── test_thompson.py
+│   └── test_ucb.py
+├── check_compatibility.py
+├── check_ucb_v.py
+├── CONTEXT.md
+├── PROGRESS.md
 ├── README.md
 ├── reproduce.sh
 ├── requirements.txt
 └── run.py
 ```
 
-The `results/` and `figures/` directories are generated automatically when the experiments are reproduced.
+`results/`, `figures/`, Python caches, the virtual environment, and pytest caches are generated locally and should not be committed unless a representative artifact is deliberately copied into a documentation asset directory.
 
 ## Installation
 
 Python 3.10 or later is recommended.
 
-Create a virtual environment:
-
 ```bash
 python -m venv .venv
-```
-
-Activate it on Linux or WSL:
-
-```bash
 source .venv/bin/activate
+python -m pip install -r requirements.txt
 ```
 
-Install the dependencies:
+The test suite requires `pytest`. During final v1.0 validation, make sure it is included in `requirements.txt`; until then it can be installed explicitly with:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install pytest
 ```
 
-## Reproduction
+## Canonical test command
 
-From the project root directory, run:
+Run tests from the project root with:
+
+```bash
+python -m pytest -q
+```
+
+This is the canonical command for the current repository. Directly invoking `pytest -q` may use a launcher whose import path does not include the project root, causing collection-time errors such as `No module named 'algorithms'` or `No module named 'envs'`. Those errors concern test-runner invocation, not the algorithm implementations.
+
+At the current v1.0 development checkpoint, all tests collected by `python -m pytest -q` pass.
+
+## Configuration
+
+The v1.0 configuration system separates the experiment name, environment, algorithms, horizon or horizons, and seeds.
+
+Example:
+
+```json
+{
+  "experiment_name": "easy_gap",
+  "environment": {
+    "name": "bernoulli",
+    "arm_means": [0.02, 0.05, 0.95]
+  },
+  "algorithms": [
+    {"name": "random", "parameters": {}},
+    {"name": "ucb1", "parameters": {}},
+    {"name": "ucb_v", "parameters": {"reward_range": 1.0}},
+    {"name": "thompson_sampling", "parameters": {}}
+  ],
+  "horizon": 5000,
+  "seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+}
+```
+
+The runner also supports:
+
+```json
+"horizons": [500, 1000, 2000, 5000, 10000]
+```
+
+instead of a single `horizon`.
+
+For backward compatibility, an algorithm may be written as a string:
+
+```json
+"algorithms": ["ucb1", "thompson_sampling"]
+```
+
+or as a dictionary with parameters:
+
+```json
+"algorithms": [
+  {"name": "ucb_v", "parameters": {"reward_range": 1.0}}
+]
+```
+
+## Current experiment configurations
+
+- `configs/basic.json`: general development configuration;
+- `configs/config_system_smoke.json`: small configuration-system smoke test;
+- `configs/ucb_v_smoke.json`: small UCB-V smoke test;
+- `configs/easy_gap.json`: clearly separated Bernoulli arms;
+- `configs/hard_gap.json`: closely spaced Bernoulli arms;
+- `configs/different_horizon.json`: final regret across multiple horizons.
+
+The JSON files are the source of truth for exact local parameters.
+
+## Running experiments
+
+Run one configuration:
+
+```bash
+python run.py --config configs/easy_gap.json
+```
+
+Run the configuration-system smoke test:
+
+```bash
+python run.py --config configs/config_system_smoke.json
+```
+
+Run the UCB-V smoke test:
+
+```bash
+python run.py --config configs/ucb_v_smoke.json
+```
+
+Run the project reproduction entry point:
 
 ```bash
 bash reproduce.sh
 ```
 
-The script will:
+The reproduction script should be treated as part of the final release contract and must be rechecked from a clean output directory before the v1.0 tag is created.
 
-1. remove old generated outputs;
-2. run all configured experiments;
-3. save step-level results as CSV files;
-4. compute the mean cumulative regret across seeds;
-5. save the comparison figure.
+## Output layout
 
-## Configuration
-
-The default experiment is defined in:
+A normalized run saves a configuration snapshot and step-level CSV files under an experiment-specific directory:
 
 ```text
-configs/basic.json
+results/<experiment_name>/config_snapshot.json
+results/<experiment_name>/<environment>_<algorithm>_T<horizon>_seed<seed>.csv
 ```
 
-The default configuration is:
-
-```json
-{
-  "arm_means": [0.3, 0.5, 0.7],
-  "horizon": 5000,
-  "algorithms": [
-    "ucb1",
-    "thompson_sampling"
-  ],
-  "seeds": [0, 1, 2, 3, 4]
-}
-```
-
-The fields have the following meanings:
-
-- `arm_means`: reward probabilities of the Bernoulli arms;
-- `horizon`: number of interaction steps in each experiment;
-- `algorithms`: algorithms included in the experiment;
-- `seeds`: random seeds used for repeated experiments.
-
-To run the experiments without the reproduction script:
-
-```bash
-python run.py --config configs/basic.json
-```
-
-To generate the regret figure separately:
-
-```bash
-python plots/plot_regret.py
-```
-
-## Output Files
-
-Each algorithm and seed pair produces one CSV file:
+Each CSV row records:
 
 ```text
-results/ucb1_seed_0.csv
-results/ucb1_seed_1.csv
-results/ucb1_seed_2.csv
-results/ucb1_seed_3.csv
-results/ucb1_seed_4.csv
-results/thompson_sampling_seed_0.csv
-results/thompson_sampling_seed_1.csv
-results/thompson_sampling_seed_2.csv
-results/thompson_sampling_seed_3.csv
-results/thompson_sampling_seed_4.csv
-```
-
-Each CSV row contains:
-
-```text
+environment
 algorithm
+horizon
 seed
 step
 action
@@ -180,53 +246,72 @@ instant_regret
 cumulative_regret
 ```
 
-The mean cumulative regret figure is saved to:
-
-```text
-figures/regret_curve.png
-```
+The exact figure filenames depend on the plotting or benchmark script used. Standard development outputs include easy-gap, hard-gap, horizon-comparison, action-frequency, and low-noise Gaussian figures.
 
 ## Reproducibility
 
-The root seed of each experiment is used to create independent random number generators for:
+Each root seed is split into independent random-number generators for:
 
-- the bandit environment;
+- the environment;
 - the algorithm.
 
-Running the same configuration with the same code and dependencies should reproduce the same CSV files.
+The project uses NumPy's `Generator` API and `SeedSequence` rather than global random state. The same code, configuration, dependency versions, and random-call order should reproduce the same CSV output.
 
-A simple reproducibility check is:
+A simple check is:
 
 ```bash
-python run.py --config configs/basic.json
-cp results/ucb1_seed_0.csv /tmp/ucb1_seed_0.csv
+python run.py --config configs/config_system_smoke.json
+cp results/<experiment_name>/<one_file>.csv /tmp/first.csv
 
-python run.py --config configs/basic.json
-diff results/ucb1_seed_0.csv /tmp/ucb1_seed_0.csv
+python run.py --config configs/config_system_smoke.json
+diff results/<experiment_name>/<one_file>.csv /tmp/first.csv
 ```
 
-If `diff` prints nothing, the two files are identical.
+No `diff` output means the files are identical.
 
-## Preliminary Results
+## Current benchmark findings
 
-The generated figure compares the mean cumulative pseudo-regret of UCB1 and Thompson Sampling across five random seeds.
+The v1.0 benchmark work currently supports the following qualitative conclusions:
 
-When reading the curves, observe:
+- Random Policy has approximately linear cumulative pseudo-regret because its per-step expected regret is constant.
+- Easy-gap environments are statistically easy to identify, while hard-gap environments require many more observations.
+- UCB methods explore strongly when an arm has been selected only a few times.
+- UCB-V may be conservative at short horizons because its finite-sample range correction can dominate its variance advantage.
+- Thompson Sampling shows strong finite-time performance in the current Bernoulli experiments, but its relative seed variability depends on the environment.
+- The experiments are consistent with sublinear learning-algorithm regret, but they do not prove a specific asymptotic regret bound or a universal algorithm ranking.
 
-1. whether cumulative regret continues to increase;
-2. whether its growth rate gradually decreases;
-3. which algorithm obtains lower regret under the current experimental configuration.
+See:
 
-These finite experiments do not prove a theoretical regret bound. They provide only an empirical comparison under the environment, horizon, and seeds specified in `configs/basic.json`.
+```text
+reports/benchmark_v1_0.md
+```
 
-## Future Work
+## Known development issues and release status
 
-Possible extensions include:
+Completed validation:
 
-- standard-deviation or confidence-interval shading;
-- additional bandit environments;
-- epsilon-greedy and KL-UCB algorithms;
-- configurable input and output paths;
-- automated unit tests;
-- additional evaluation metrics;
-- larger-scale experiment management.
+- `python -m pytest -q`: 13 tests passed;
+- `config_system_smoke.json`: 8 experiments completed successfully;
+- `ucb_v_smoke.json`: completed successfully.
+
+The following items still remain before the v1.0 release is final:
+
+- complete a clean `reproduce.sh` run;
+- ensure `pytest` is recorded as a dependency;
+- complete and proofread the benchmark report and README;
+- remove temporary files and inspect `git status`;
+- create clear Git commits;
+- create the annotated `v1.0` tag only after the working tree and release checks are clean.
+
+## Scope and limitations
+
+The v1.0 target is a focused undergraduate research-training platform, not a general industrial framework. It intentionally does not include:
+
+- contextual, linear, adversarial, or non-stationary bandits;
+- distributed experiment execution;
+- dashboards, databases, MLflow, or Weights & Biases;
+- large hyperparameter sweeps;
+- checkpoints and failure recovery;
+- paper-scale benchmark coverage.
+
+The goal is to make every current design decision, update rule, experiment, and regret curve understandable and reproducible.

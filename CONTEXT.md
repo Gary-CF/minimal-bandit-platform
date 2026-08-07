@@ -1,85 +1,123 @@
 # Bandit Project Context
 
-> 本文件是项目的当前状态快照、架构说明和长期协作入口。  
-> 它主要回答：**项目是什么，为什么这样设计，当前接口怎样工作，继续开发时必须保持哪些约定。**
+> 本文件是项目的当前状态快照、架构说明和长期协作入口。
+> 它主要回答：**项目是什么、当前代码怎样组织、继续开发时必须保持哪些约定。**
 
 ---
 
 ## 1. 项目身份
 
 - **项目名称**：Minimal Bandit Platform
-- **当前版本**：v0.1
+- **当前开发目标**：Bandit Platform v1.0
+- **当前状态**：v1.0 development，进入结果分析、文档与最终复现阶段
+- **v0.1 状态**：已于 8 月 1 日完成教学型最小闭环
 - **领域**：Stochastic Multi-Armed Bandit
-- **当前环境类型**：Bernoulli Bandit
-- **当前已实现算法**：
+- **当前环境**：
+  - Bernoulli Bandit
+  - Gaussian Bandit
+- **当前算法**：
   - Random Policy
   - UCB1
-  - Thompson Sampling
-- **当前主要指标**：
+  - UCB-V
+  - Thompson Sampling（当前实现为 Beta–Bernoulli）
+- **主要指标**：
   - instantaneous pseudo-regret
   - cumulative pseudo-regret
 - **项目性质**：
   - 学习型科研工程；
-  - 最小可复现实验平台；
-  - 后续在线学习、强化学习和序贯决策工程的起点。
+  - 可复现的最小实验平台；
+  - 后续 Online Learning、Bandit、RL 与序贯决策工程的底座。
+
+版本口径必须统一：
+
+```text
+v0.1
+    8 月 1 日完成的教学型最小闭环
+
+v1.0
+    8 月 2 日—8 月 9 日的暑期正式交付目标
+
+当前
+    v1.0 development / final validation
+```
+
+当前阶段不使用 `v0.2` 作为版本名称，也不应在最终验收完成前宣称 v1.0 已正式发布。
 
 ---
 
-## 2. 项目总体目标
+## 2. v1.0 的总体目标
 
-项目的当前目标是：
+> 在保持代码透明、范围克制和可解释的前提下，完成“理论—实现—测试—实验—分析—复现—文档”的完整闭环。
 
-> 构建一个结构清晰、随机性可控、实验可复现、结果可记录、算法可比较、后续可扩展的最小 Bandit 平台。
+v1.0 的完成标准不是算法数量，而是：
 
-本项目不仅用于实现算法，也用于训练以下工程能力：
-
-- 将算法与环境解耦；
-- 设计统一接口；
-- 显式管理随机性；
-- 使用配置定义实验；
-- 保存结构化日志；
-- 聚合多 seed 结果；
-- 分离实验运行与结果分析；
-- 编写一键复现脚本；
-- 使用 Git 管理版本；
-- 为长期人机协作维护显式上下文。
+```text
+正确性
++ 兼容性边界清楚
++ 多 seed 可复现
++ 标准实验完整
++ 曲线解释可信
++ 使用文档完整
++ 从零复现通过
+```
 
 ---
 
 ## 3. 当前范围
 
-### v0.1 包含
+### 3.1 已进入 v1.0 的内容
+
+环境：
 
 - Bernoulli Bandit；
+- Gaussian Bandit。
+
+算法：
+
 - Random Policy；
 - UCB1；
-- Thompson Sampling；
-- JSON configuration；
-- multi-algorithm scheduling；
-- multi-seed experiments；
-- step-level CSV logging；
-- mean cumulative regret aggregation；
-- regret visualization；
-- one-command reproduction；
-- README、requirements 与 Git ignore。
+- UCB-V；
+- Bernoulli Thompson Sampling。
 
-### v0.1 不包含
+基础设施：
+
+- 统一算法接口；
+- 环境与算法解耦；
+- `SeedSequence` 派生环境 RNG 与算法 RNG；
+- JSON config；
+- config 归一化；
+- 单 horizon 与多 horizon；
+- 字符串和字典两种算法配置形式；
+- algorithm × horizon × seed 调度；
+- experiment-specific results directory；
+- config snapshot；
+- step-level CSV；
+- plotting / benchmark 输出；
+- compatibility checks；
+- smoke configs；
+- 最小自动测试；
+- `reproduce.sh`；
+- README、CONTEXT、PROGRESS、benchmark report。
+
+### 3.2 当前明确不做
 
 - contextual bandit；
-- non-stationary bandit；
 - linear bandit；
+- adversarial bandit；
+- non-stationary bandit；
 - neural bandit；
 - distributed experiments；
 - database logging；
-- MLflow 或 Weights & Biases；
-- 完整 benchmark suite；
-- 并行调度；
-- checkpoint 和失败恢复；
-- 完整自动化测试体系。
+- MLflow / Weights & Biases；
+- dashboard；
+- checkpoint 与失败恢复；
+- 大规模超参数搜索；
+- 复杂注册器或插件系统；
+- 完整论文级 benchmark。
 
 原则：
 
-> 先保持最小、透明和可理解，再根据真实需求增加抽象与工具。
+> 不用功能数量掩盖正确性问题；不为形式成熟引入当前没有真实需求的抽象。
 
 ---
 
@@ -88,45 +126,49 @@
 当文档、聊天记录和实现不一致时，按以下顺序判断：
 
 1. 当前可运行代码；
-2. 自动测试和实际复现结果；
-3. `configs/*.json` 中的真实配置；
-4. `CONTEXT.md` 中的当前接口约定；
-5. `PROGRESS.md` 中的进度记录；
-6. `README.md` 中的对外说明；
-7. 历史聊天或临时笔记。
+2. `python -m pytest -q` 与 smoke test 的真实输出；
+3. `configs/*.json` 的真实内容；
+4. CSV、figure 和 config snapshot；
+5. `CONTEXT.md`；
+6. `PROGRESS.md`；
+7. `README.md`；
+8. 历史聊天和临时笔记。
 
-如果发现冲突：
+发现冲突时：
 
-- 不应默默猜测；
-- 应明确指出差异；
+- 不默默猜测；
+- 明确指出差异；
 - 以代码和运行结果为准；
-- 随后同步更新文档。
+- 随后同步三份主文档和实验报告。
 
 ---
 
 ## 5. 当前架构
 
 ```text
-Configuration
-configs/basic.json
+JSON Configuration
+configs/*.json
         ↓
-Experiment orchestration
+Config loading and normalization
 run.py
         ↓
-Algorithm layer
+Environment creation ───── Compatibility validation
+envs/                       check_compatibility.py / runner checks
+        ↕
+Algorithm creation
 algorithms/
-        ↔
-Environment layer
-envs/
         ↓
-Step-level records
-results/*.csv
+Single experiment loop
+action → reward → update → pseudo-regret
         ↓
-Analysis layer
-plots/plot_regret.py
+Step-level records and config snapshot
+results/<experiment_name>/
         ↓
-Visualization
-figures/regret_curve.png
+Aggregation and plotting
+plots/
+        ↓
+Figures and human analysis
+figures/ + reports/benchmark_v1_0.md
 ```
 
 ---
@@ -137,103 +179,170 @@ figures/regret_curve.png
 
 负责：
 
-- 定义奖励环境；
-- 保存真实环境参数；
+- 保存环境真实参数；
+- 验证 action；
 - 根据 action 生成 reward；
-- 提供评估所需的真实信息；
+- 提供最佳均值；
 - 计算 pseudo-regret。
+
+当前环境：
+
+```text
+BernoulliBandit
+GaussianBandit
+```
 
 不负责：
 
-- 算法决策；
-- 算法内部更新；
+- 算法选择；
+- 算法统计量更新；
 - CSV 保存；
-- 多 seed 调度；
+- 多实验调度；
 - 绘图；
-- README 或实验报告。
-
----
+- 为算法暴露真实 arm mean。
 
 ### 6.2 `algorithms/`
 
+共同接口：
+
+```python
+action = algorithm.select_action()
+algorithm.update(action, reward)
+```
+
 负责：
 
-- 保存算法内部状态；
-- 根据当前状态选择 action；
-- 根据 action 和 reward 更新状态。
+- 维护算法内部状态；
+- 根据可观察历史选择动作；
+- 根据 action 和 reward 更新。
 
 不负责：
 
-- 读取真实 `arm_means`；
-- 生成环境 reward；
+- 读取环境真实均值；
+- 生成 reward；
 - 计算真实 pseudo-regret；
+- 调度实验；
 - 保存 CSV；
-- 调度多个实验；
-- 聚合或绘图。
+- 聚合绘图。
 
----
+当前配置名称：
+
+```text
+random
+ucb1
+ucb_v
+thompson_sampling
+```
+
+当前类名：
+
+```text
+RandomPolicy
+UCB1
+UCBV
+ThompsonSampling
+```
 
 ### 6.3 `run.py`
 
 负责：
 
-- 解析命令行参数；
-- 读取 JSON config；
-- 转换并提取实验参数；
-- 创建根 seed；
-- 派生环境 RNG 和算法 RNG；
+- 解析 `--config`；
+- 加载 JSON；
+- 归一化旧式和新式 config；
 - 创建环境与算法；
-- 运行一个单次实验；
-- 调度 algorithm × seed；
-- 执行必要的一致性检查；
-- 返回逐 step records；
-- 保存 CSV；
-- 输出必要进度信息。
+- 执行兼容性检查；
+- 创建 root seed；
+- 派生环境 RNG 与算法 RNG；
+- 执行单次实验；
+- 调度 algorithm × horizon × seed；
+- 检查运行时不变量；
+- 保存 config snapshot；
+- 保存逐 step CSV；
+- 输出必要进度与 warning。
 
----
+### 6.4 `configs/`
 
-### 6.4 `plots/plot_regret.py`
+当前可见配置：
+
+```text
+basic.json
+config_system_smoke.json
+different_horizon.json
+easy_gap.json
+hard_gap.json
+ucb_v_smoke.json
+```
+
+职责：
+
+- 声明实验，不实现实验；
+- 固定 environment、algorithm、horizon、seed；
+- 为 smoke、标准实验和多 horizon 实验提供可重复入口。
+
+### 6.5 `plots/`
 
 负责：
 
-- 读取已经生成的 CSV；
-- 验证日志结构；
-- 按 algorithm 分组；
-- 检查多 seed step 对齐；
-- 组成 regret matrix；
-- 跨 seed 求平均；
-- 绘制和保存结果。
+- 读取已经生成的实验结果；
+- 检查字段和 step 对齐；
+- 跨 seed 聚合；
+- 绘制 regret 或动作频率；
+- 保存 figure。
 
-它不负责重新运行 Bandit 实验。
+不负责重新实现算法或修改实验记录。
 
----
+### 6.6 `tests/`
 
-### 6.5 `reproduce.sh`
+当前测试文件：
 
-负责：
+```text
+test_environment.py
+test_ucb.py
+test_thompson.py
+```
 
-- 删除旧的可再生输出；
-- 运行默认配置；
-- 生成 CSV；
-- 调用绘图脚本；
-- 完成一键复现。
+正式测试命令：
 
----
+```bash
+python -m pytest -q
+```
 
-### 6.6 文档
+当前状态：
+
+- 使用该命令时，所有已收集测试通过；
+- 直接运行 `pytest -q` 曾在 collection 阶段因项目根目录未进入 import path 而失败；
+- 该问题属于启动方式和导入路径，不属于算法断言失败；
+- 当前仓库以 `python -m pytest -q` 为 canonical command。
+
+### 6.7 辅助检查脚本
+
+```text
+check_compatibility.py
+check_ucb_v.py
+```
+
+作用：
+
+- 快速验证当前环境–算法组合边界；
+- 快速检查 UCB-V 的关键行为；
+- 用于开发期诊断，不替代正式测试和最终复现。
+
+### 6.8 文档
 
 ```text
 README.md
-    面向项目使用者
+    面向使用者：安装、运行、配置、输出、边界
 
 CONTEXT.md
-    面向未来开发者与 AI，保存当前架构和接口约定
+    面向未来开发者和 AI：架构、接口、约束、恢复协议
 
 PROGRESS.md
-    保存项目演进、验收状态和下一步计划
-```
+    面向项目管理：完成了什么、验收到哪里、下一步是什么
 
-三者不应重复承担同一职责。
+reports/benchmark_v1_0.md
+    面向评估者：实验设计、结果、异常排查与理论解释
+```
 
 ---
 
@@ -244,14 +353,29 @@ PROGRESS.md
 ├── algorithms/
 │   ├── base.py
 │   ├── thompson_sampling.py
-│   └── ucb1.py
+│   ├── ucb1.py
+│   └── ucb_v.py
 ├── configs/
-│   └── basic.json
+│   ├── basic.json
+│   ├── config_system_smoke.json
+│   ├── different_horizon.json
+│   ├── easy_gap.json
+│   ├── hard_gap.json
+│   └── ucb_v_smoke.json
 ├── envs/
-│   └── bernoulli_bandit.py
+│   ├── bernoulli_bandit.py
+│   └── gaussian_bandit.py
+├── figures/
 ├── plots/
-│   └── plot_regret.py
-├── .gitignore
+├── reports/
+│   └── benchmark_v1_0.md
+├── results/
+├── tests/
+│   ├── test_environment.py
+│   ├── test_thompson.py
+│   └── test_ucb.py
+├── check_compatibility.py
+├── check_ucb_v.py
 ├── CONTEXT.md
 ├── PROGRESS.md
 ├── README.md
@@ -260,156 +384,271 @@ PROGRESS.md
 └── run.py
 ```
 
-可再生输出：
+本地但不应进入 Git 的内容包括：
 
 ```text
+.venv/
+__pycache__/
+.pytest_cache/
 results/
 figures/
 ```
 
-本地环境和缓存：
-
-```text
-.venv/
-venv/
-__pycache__/
-```
+代表性 figure 若需要展示，应复制到受版本控制的 `assets/` 或 `reports/assets/`，而不是强行提交整个生成目录。
 
 ---
 
-## 8. Algorithm 接口约定
+## 8. Environment 接口约定
 
-当前实验循环要求算法对象支持：
-
-```python
-action = algorithm.select_action()
-algorithm.update(action, reward)
-```
-
-预期行为：
-
-- `select_action()` 返回一个合法臂编号；
-- `0 <= action < num_arms`；
-- `update(action, reward)` 只使用可观察反馈；
-- 算法不读取环境真实均值；
-- 每次新实验创建新的算法对象；
-- 不同实验之间不共享算法状态。
-
-当前配置名称约定：
-
-```text
-random
-ucb1
-thompson_sampling
-```
-
-当前 Python 类名：
-
-```text
-RandomPolicy
-UCB1
-ThompsonSampling
-```
-
-配置名称、类名和文件名可以采用不同命名风格，例如：
-
-```text
-配置名称：thompson_sampling
-类名：ThompsonSampling
-文件名：thompson_sampling.py
-```
-
-新增算法时，需要同步检查：
-
-- 新算法实现；
-- 算法创建或注册逻辑；
-- config；
-- 测试；
-- README；
-- CONTEXT；
-- PROGRESS。
-
----
-
-## 9. Environment 接口约定
-
-当前实验循环依赖环境提供类似以下接口：
+实验循环依赖环境提供：
 
 ```python
 reward = env.step(action)
 instant_regret = env.pseudo_regret(action)
 ```
 
-并会使用环境属性：
+并使用：
 
 ```python
 env.arm_means
 env.best_mean
 ```
 
-环境预期性质：
+共同性质：
 
-- action 必须合法；
-- Bernoulli reward 只能是 `0` 或 `1`；
+- action 合法；
+- reward 有限；
 - pseudo-regret 非负；
-- 环境真实参数只用于反馈和评估；
-- 算法不应访问真实 arm mean。
+- 环境可读取真实均值用于反馈与评估；
+- 算法不得读取真实均值。
+
+Bernoulli 特有：
+
+```text
+reward ∈ {0, 1}
+arm_means ∈ [0, 1]
+```
+
+Gaussian 特有：
+
+```text
+reward 为有限浮点数
+每个臂具有 arm_mean 与 arm_std
+奖励不保证位于 [0,1]
+```
 
 ---
 
-## 10. 单次实验约定
+## 9. Algorithm 接口与不变量
 
-当前单次实验概念接口为：
+### 9.1 公共约定
+
+```python
+select_action() -> int
+update(action, reward) -> None
+```
+
+必须满足：
+
+- `0 <= action < num_arms`；
+- 每轮只更新一次；
+- 新实验创建新算法对象；
+- 不同 seed 不共享状态；
+- 算法只使用已观测反馈。
+
+### 9.2 UCB1
+
+应保持：
+
+```text
+初始化阶段覆盖所有臂
+counts.sum() == horizon
+counts 与实验端 action_counts 一致
+reward_sums 与实验端一致
+estimated_means 与经验均值一致
+```
+
+### 9.3 UCB-V
+
+应保持：
+
+```text
+初始化阶段覆盖所有臂
+维护 counts
+维护 reward_sums
+维护 reward_square_sums 或等价方差统计量
+经验方差非负
+counts 与实验端 action_counts 一致
+reward_sums 与实验端一致
+```
+
+当前实现按有界奖励公式使用 `reward_range`，不能因为算法家族理论上可扩展，就默认当前类支持 Gaussian。
+
+### 9.4 Thompson Sampling
+
+当前为 Beta–Bernoulli：
+
+```text
+alpha_i - 1 = successes_i
+beta_i - 1 = failures_i
+alpha_i + beta_i - 2 = counts_i
+alpha_i >= 1
+beta_i >= 1
+```
+
+不能直接用于 Gaussian reward。
+
+---
+
+## 10. 兼容性约定
+
+兼容性检查描述的是当前代码实现。
+
+必须坚持：
+
+- 不把理论上可推广解释成当前代码已经支持；
+- 不让 Beta–Bernoulli TS 接收连续 Gaussian reward；
+- 不让依赖 `[0,1]` 有界性的 UCB-V 无检查地运行于 Gaussian；
+- 不兼容组合应尽早抛出清楚的 `ValueError`；
+- 新增环境或参数后同步更新检查脚本、测试和文档。
+
+Bernoulli 标准实验使用：
+
+```text
+Random
+UCB1
+UCB-V
+Thompson Sampling
+```
+
+Gaussian 实验只使用通过当前 compatibility check 的算法配置。
+
+---
+
+## 11. 配置约定
+
+### 11.1 归一化后的核心结构
+
+```json
+{
+  "experiment_name": "easy_gap",
+  "environment": {
+    "name": "bernoulli",
+    "arm_means": [0.02, 0.05, 0.95]
+  },
+  "algorithms": [
+    {"name": "random", "parameters": {}},
+    {"name": "ucb1", "parameters": {}},
+    {"name": "ucb_v", "parameters": {"reward_range": 1.0}},
+    {"name": "thompson_sampling", "parameters": {}}
+  ],
+  "horizons": [5000],
+  "seeds": [0, 1, 2, 3, 4]
+}
+```
+
+### 11.2 兼容输入
+
+单 horizon：
+
+```json
+"horizon": 5000
+```
+
+多 horizon：
+
+```json
+"horizons": [500, 1000, 2000, 5000, 10000]
+```
+
+旧式算法字符串：
+
+```json
+"algorithms": ["ucb1", "thompson_sampling"]
+```
+
+带参数字典：
+
+```json
+"algorithms": [
+  {"name": "ucb_v", "parameters": {"reward_range": 1.0}}
+]
+```
+
+归一化后，runner 内部应始终把 `algorithms` 当作：
+
+```python
+list[dict[str, Any]]
+```
+
+禁止再次写成：
+
+```python
+algorithms = [config["algorithms"]]
+```
+
+因为这会生成嵌套列表，并在 `algorithm_config["name"]` 处触发：
+
+```text
+TypeError: list indices must be integers or slices, not str
+```
+
+正确形态为：
+
+```python
+algorithms = list(config["algorithms"])
+```
+
+该问题已修复，并已通过 `config_system_smoke.json` 完成验证：8 个 algorithm × horizon × seed 实验全部运行完成。
+
+---
+
+## 12. 单次实验约定
+
+概念接口：
 
 ```python
 run_single_experiment(
     seed: int,
-    arm_means: list[float],
+    environment_config: dict,
     horizon: int,
-    algorithm_name: str,
+    algorithm_config: dict,
 ) -> list[ExperimentRecord]
 ```
 
-具体函数签名若与本地代码略有差异，以本地代码为准。
+每次实验必须：
 
-每次单次实验必须：
+1. 接收 root seed；
+2. 派生 env RNG 与 algorithm RNG；
+3. 创建新环境；
+4. 验证兼容性；
+5. 创建新算法；
+6. 从 step 1 运行至 horizon；
+7. 执行 action → reward → update → regret；
+8. 保存逐 step record；
+9. 执行公共和算法专属检查；
+10. 返回长度为 horizon 的 records。
 
-1. 接收一个根 seed；
-2. 派生环境 RNG 和算法 RNG；
-3. 创建新的环境对象；
-4. 创建新的算法对象；
-5. 从 step 1 运行到 horizon；
-6. 每一步保存 record；
-7. 执行必要的一致性检查；
-8. 返回长度为 horizon 的 records。
+禁止跨实验复用：
 
-禁止跨 seed 复用：
-
-- `env`；
-- `algorithm`；
-- `records`；
-- `action_counts`；
-- `reward_sums`；
-- cumulative regret 状态。
+- env；
+- algorithm；
+- records；
+- counts；
+- reward sums；
+- cumulative regret。
 
 ---
 
-## 11. 随机性约定
+## 13. 随机性与复现约定
 
-当前统一使用：
+统一使用：
 
 ```python
 np.random.default_rng(...)
 ```
 
-不应在项目内部随意混用全局随机 API：
-
-```python
-np.random.seed(...)
-np.random.random(...)
-```
-
-当前随机状态派生方式：
+root seed 派生：
 
 ```python
 seed_sequence = np.random.SeedSequence(seed)
@@ -419,87 +658,27 @@ env_rng = np.random.default_rng(env_seed)
 algorithm_rng = np.random.default_rng(algorithm_seed)
 ```
 
-设计理由：
+理由：
 
-- 环境随机性和算法随机性分离；
-- 算法内部增加随机采样时，不直接消耗环境 RNG；
-- 根 seed 足以恢复两个子随机状态；
-- CSV 只需记录根 seed。
+- 分离环境噪声和算法内部随机性；
+- 算法增加一次内部采样不会直接消费环境 RNG；
+- 一个 root seed 可恢复子随机状态；
+- 便于复现实验。
 
 复现边界：
 
-> 相同 seed 只有在代码、配置、依赖和随机数调用顺序一致时，才预期产生相同结果。
+> 相同 seed 只有在代码、配置、依赖版本和随机调用顺序相同时，才预期生成相同 CSV。
 
 ---
 
-## 12. 配置约定
+## 14. 日志约定
 
-当前运行命令：
-
-```bash
-python run.py --config configs/basic.json
-```
-
-当前必需字段：
-
-```json
-{
-  "arm_means": [0.3, 0.5, 0.7],
-  "horizon": 5000,
-  "algorithms": [
-    "ucb1",
-    "thompson_sampling"
-  ],
-  "seeds": [0, 1, 2, 3, 4]
-}
-```
-
-字段含义：
-
-- `arm_means`
-  - Bernoulli arms 的真实奖励概率；
-- `horizon`
-  - 每个单次实验的交互步数；
-- `algorithms`
-  - 要运行的算法名称；
-- `seeds`
-  - 独立重复实验使用的根 seed。
-
-默认实验数：
+当前字段：
 
 ```text
-len(algorithms) × len(seeds)
-= 2 × 5
-= 10
-```
-
-若未来修改 config schema，需要同步更新：
-
-- JSON 文件；
-- 配置读取逻辑；
-- README；
-- reproduce script；
-- CONTEXT；
-- PROGRESS；
-- 自动测试。
-
----
-
-## 13. 日志约定
-
-一条实验记录概念上为：
-
-```python
-ExperimentRecord = dict[
-    str,
-    str | int | float,
-]
-```
-
-当前字段顺序：
-
-```text
+environment
 algorithm
+horizon
 seed
 step
 action
@@ -508,293 +687,192 @@ instant_regret
 cumulative_regret
 ```
 
-每行应能够独立回答：
+建议输出布局：
 
-- 哪个算法；
+```text
+results/<experiment_name>/config_snapshot.json
+results/<experiment_name>/<environment>_<algorithm>_T<horizon>_seed<seed>.csv
+```
+
+每行必须回答：
+
+- 在哪个环境；
+- 使用哪个算法；
+- horizon 是多少；
 - 哪个 seed；
-- 第几个 step；
+- 当前 step；
 - 选择哪个 action；
-- 得到什么 reward；
-- 当前即时 regret；
-- 当前累计 regret。
+- 获得什么 reward；
+- 当前 instant regret；
+- 当前 cumulative regret。
 
-当前文件命名：
-
-```text
-results/{algorithm_name}_seed_{seed}.csv
-```
-
-例如：
-
-```text
-results/ucb1_seed_0.csv
-results/thompson_sampling_seed_4.csv
-```
-
-同一 algorithm 和 seed 重跑时，默认覆盖旧文件，不追加重复内容。
-
-正式实验数据进入 CSV，终端 `print` 只用于进度与必要提示。
-
----
-
-## 14. 绘图与聚合约定
-
-当前绘图脚本假设：
-
-- 每个 CSV 只包含一次实验；
-- 同一个 CSV 内 algorithm 不变化；
-- 同一个 CSV 内 seed 不变化；
-- step 从 1 连续增长；
-- cumulative regret 单调不减；
-- 同一算法不同 seed 的 step 完全对齐。
-
-对于一个算法，聚合矩阵形状为：
-
-```text
-(number_of_seeds, horizon)
-```
-
-当前平均方式：
-
-```python
-mean_regrets = np.mean(
-    regret_matrix,
-    axis=0,
-)
-```
-
-解释：
-
-- 跨 seed 求平均；
-- 保留 step 维度。
-
-当前输出：
-
-```text
-figures/regret_curve.png
-```
-
-当前结果仅代表特定配置下的经验比较，不应表述为算法的一般优劣证明。
+同一路径重跑时默认覆盖，不追加重复记录。
 
 ---
 
 ## 15. 正确性不变量
 
-任何后续重构都应保持以下不变量。
-
-### 15.1 公共实验不变量
+公共：
 
 ```text
 len(records) == horizon
 sum(action_counts) == horizon
 0 <= action < num_arms
-reward ∈ {0, 1}
+reward 为有限值
 instant_regret >= 0
 cumulative_regret 单调不减
 sum(reward_sums) == total_reward
 ```
 
-### 15.2 UCB1 不变量
+Bernoulli：
 
 ```text
-初始化阶段依次选择所有臂
-algorithm.counts 与 action_counts 一致
-algorithm.reward_sums 与 reward_sums 一致
-estimated_means 与经验均值一致
+reward ∈ {0,1}
 ```
 
-### 15.3 Thompson Sampling 不变量
+日志：
 
 ```text
-alpha - 1 = successes
-beta - 1 = failures
-alpha + beta - 2 = action_counts
-alpha >= 1
-beta >= 1
+CSV 数据行数 == horizon
+相同 seed 的重复运行可复现
+不同 seed 通常产生不同轨迹
 ```
 
-### 15.4 日志与复现不变量
+实验解释：
 
-```text
-每个 CSV 行数 = horizon + 1
-相同 seed 重跑应得到相同 CSV
-不同 seed 通常产生不同 CSV
-```
+- Random 的解析期望应与实验均值接近；
+- 学习算法应在合理配置下显著优于 Random；
+- “最优臂被选得最多”是有限实验诊断，不是每个短 smoke run 都必须满足的硬断言；
+- 有限实验不能证明渐近 regret bound。
 
 ---
 
-## 16. 当前运行工作流
+## 16. 标准实验
 
-运行默认实验：
+### Easy-gap
 
-```bash
-python run.py --config configs/basic.json
-```
+目的：
 
-单独绘图：
+- 验证算法能快速识别明显最优臂；
+- 检查动作选择比例；
+- 检查 Random regret 解析值。
 
-```bash
-python plots/plot_regret.py
-```
+### Hard-gap
 
-一键复现：
+目的：
 
-```bash
-bash reproduce.sh
-```
+- 展示小 gap 带来的识别困难；
+- 观察多 seed 波动；
+- 比较 UCB1、UCB-V 与 TS 的有限时间行为。
 
-最小验收：
+### Different-horizon
 
-```bash
-rm -rf results figures
-bash reproduce.sh
+目的：
 
-find results -maxdepth 1 -name "*.csv" | wc -l
-test -f figures/regret_curve.png
-```
+- 比较最终 regret 随 \(T\) 的增长；
+- 区分 Random 的近线性趋势与学习算法的次线性趋势；
+- 不把少量 horizon 点写成严格渐近证明。
 
-默认预期：
+### Smoke configs
 
-```text
-10 个 CSV
-figures/regret_curve.png 存在
-```
+目的：
+
+- 快速检查 config schema；
+- 快速检查多算法调度；
+- 快速检查 UCB-V 的初始化与更新；
+- 不承担最终 benchmark 结论。
 
 ---
 
-## 17. 当前设计决策
+## 17. 当前测试状态
 
-### 17.1 使用 CSV，而不是数据库
+已确认：
 
-理由：
-
-- 当前数据规模较小；
-- 文件结构透明；
-- 人可以直接查看；
-- Python、R、MATLAB 等工具都能读取；
-- 有利于理解运行与分析解耦。
-
-当前不引入数据库、MLflow 或 W&B。
-
-### 17.2 保存逐 step 数据
-
-理由：
-
-- 可以画完整 regret curve；
-- 可以分析 action、reward 和即时 regret；
-- 后续增加分析指标时无需重新运行实验。
-
-### 17.3 生成目录不提交 Git
-
-当前：
-
-```text
-results/
-figures/
+```bash
+python -m pytest -q
 ```
 
-是可再生输出，因此由 `.gitignore` 忽略。
+能够完成测试收集并通过当前测试。
 
-未来若 GitHub README 需要展示图像，建议复制代表性图片到：
+曾出现：
 
-```text
-assets/
+```bash
+pytest -q
 ```
 
-并单独纳入版本控制。
+在 collection 阶段报：
 
-### 17.4 终端输出保持简洁
+```text
+ModuleNotFoundError: No module named 'envs'
+ModuleNotFoundError: No module named 'algorithms'
+```
 
-终端主要显示：
+判断：
 
-- 总实验数量；
-- 当前 algorithm 和 seed；
-- 保存路径；
-- warning；
-- reproduce 阶段。
+- 不是测试断言失败；
+- 不是算法实现失败；
+- 是 launcher 与 `sys.path` 的差异；
+- README 和 release instructions 统一写 `python -m pytest -q`。
 
-算法内部统计与正式数据进入 CSV。
-
-### 17.5 暂不引入重量级框架
-
-v0.1 不使用：
-
-- pandas；
-- Hydra；
-- MLflow；
-- Weights & Biases；
-- 数据库；
-- 分布式任务系统。
-
-只有当项目规模出现真实需求时再升级。
+不要在每个测试文件里临时 `sys.path.append(...)` 来掩盖项目运行约定。
 
 ---
 
-## 18. 已知限制
+## 18. 当前已知未完成项
 
-当前限制包括：
+在创建 v1.0 tag 前仍需：
 
-- 仅支持 Bernoulli Bandit；
-- config 没有正式 schema；
-- 没有独立 `tests/`；
-- 算法注册方式还比较直接；
-- CSV 没有实验元数据 summary；
-- 未记录 Git commit 和依赖版本；
-- 未记录运行时间与硬件；
-- 没有标准差或置信区间；
-- 没有并行调度；
-- 没有 checkpoint；
-- 输入输出路径较固定；
-- v0.x 阶段核心接口仍可能演化。
-
-扩展时应优先解决真实瓶颈，而不是为了形式成熟而增加抽象。
+- [x] 用修正后的 runner 通过 `config_system_smoke.json`；
+- [x] 再跑一次 `ucb_v_smoke.json`；
+- [x] `python -m pytest -q` 通过；
+- [ ] 确认 `pytest` 已写入 `requirements.txt`；
+- [ ] 完成 README 与 benchmark report；
+- [ ] 从空 `results/`、`figures/` 执行 `bash reproduce.sh`；
+- [ ] 在干净虚拟环境安装和复现；
+- [ ] 清理临时文件与误生成文件；
+- [ ] `git diff --check` 通过；
+- [ ] 创建清晰 Git commits；
+- [ ] 工作区 clean 后创建 annotated `v1.0` tag。
 
 ---
 
 ## 19. 增量开发规则
 
-普通功能开发时应：
+每一步：
 
-1. 先读取 `CONTEXT.md`；
-2. 再读取 `PROGRESS.md`；
-3. 读取与当前任务直接相关的代码；
-4. 保持已有接口，除非任务明确要求重构；
-5. 每次修改一个清晰职责；
-6. 修改后立即执行最小测试；
-7. 完成后执行完整 reproduce；
-8. 同步更新相关文档；
-9. 创建清晰 Git commit。
+1. 先明确当前目标；
+2. 读取 `CONTEXT.md` 和 `PROGRESS.md`；
+3. 只打开直接相关代码；
+4. 解释修改动机；
+5. 用户亲手完成小步修改；
+6. 运行最小测试；
+7. 达到验收标准后再进入下一步；
+8. 同步文档；
+9. 创建职责单一的 Git commit。
 
 未经明确讨论，不应：
 
-- 一次性重命名所有核心文件；
-- 用新框架替换整个 v0.1；
-- 删除断言而不提供替代测试；
-- 修改 CSV schema 而不更新绘图脚本；
-- 修改 seed 传播方式而不做复现测试；
-- 让算法访问真实 arm mean；
-- 将有限实验结果写成普遍理论结论。
+- 大规模重命名；
+- 引入重型框架；
+- 删除断言而无替代测试；
+- 修改 CSV schema 而不更新 plotting；
+- 修改 seed 传播而不做复现；
+- 让算法访问真实均值；
+- 将一次实验写成普遍算法结论；
+- 为追求功能数量扩大 v1.0 范围。
 
 ---
 
 ## 20. 新窗口与 AI 协作恢复协议
 
-`CONTEXT.md` 能恢复高层状态，但不能替代真实代码。
-
-### 20.1 规划或路线讨论
-
-提供：
+规划和状态恢复至少提供：
 
 ```text
 CONTEXT.md
 PROGRESS.md
 ```
 
-通常足够。
-
-### 20.2 新增或修改算法
-
-至少提供：
+修改算法至少提供：
 
 ```text
 CONTEXT.md
@@ -802,109 +880,65 @@ PROGRESS.md
 algorithms/base.py
 相关算法文件
 run.py
-configs/basic.json
+相关 config
+相关 tests
 ```
 
-例如实现 KL-UCB：
+修改环境至少提供：
 
 ```text
 CONTEXT.md
 PROGRESS.md
-algorithms/base.py
-algorithms/ucb1.py
+相关 env 文件
 run.py
-configs/basic.json
+compatibility checks
+相关 config
+相关 tests
 ```
 
-### 20.3 修改环境
-
-至少提供：
-
-```text
-CONTEXT.md
-PROGRESS.md
-envs/bernoulli_bandit.py
-run.py
-configs/basic.json
-受影响的算法文件
-```
-
-### 20.4 修改日志或绘图
-
-至少提供：
+修改实验或绘图至少提供：
 
 ```text
 CONTEXT.md
 PROGRESS.md
 run.py
-plots/plot_regret.py
-configs/basic.json
+plots/
+相关 configs
+一小组代表性 CSV 或 figure
 ```
 
-### 20.5 架构升级或版本发布
-
-优先上传完整项目压缩包，并要求按以下顺序读取：
+版本发布优先提供完整项目压缩包，并按以下顺序读取：
 
 1. `CONTEXT.md`
 2. `PROGRESS.md`
 3. `README.md`
-4. `run.py`
-5. 相关算法和环境文件
-6. config 和测试
+4. `reports/benchmark_v1_0.md`
+5. `run.py`
+6. algorithms / envs
+7. configs / tests / reproduce script
 
-不得只根据聊天记忆猜测当前接口。
+不得只凭历史聊天猜测当前接口。
 
 ---
 
 ## 21. 当前下一步
 
-v0.1 完成后，推荐进入 v0.2：
+当前不再增加算法。
 
-1. 建立 `tests/`；
-2. 把关键不变量转成自动化测试；
-3. 实现一个新算法；
-4. 加入标准差阴影；
-5. 扩展 config 和文档；
-6. 重新完成复现性验收；
-7. 发布 v0.2。
-
-候选算法优先级：
+下一步顺序：
 
 ```text
-Epsilon-Greedy
-    简单基线，适合验证扩展接口
-
-KL-UCB
-    深入理解分布相关的置信上界
-
-Bernstein-UCB
-    连接方差自适应集中不等式
-```
-
-具体选择应服从下一阶段的理论学习目标。
-
----
-
-## 22. 文档维护约定
-
-每次重要修改后：
-
-- `README.md`
-  - 更新用户使用方式；
-- `CONTEXT.md`
-  - 更新当前接口和设计约束；
-- `PROGRESS.md`
-  - 更新完成情况和下一里程碑。
-
-三份文档定位：
-
-```text
-README
-    项目如何使用
-
-CONTEXT
-    项目现在如何设计和继续开发
-
-PROGRESS
-    项目已经走到哪里
+修复后的 config smoke
+        ↓
+UCB-V smoke
+        ↓
+文档与实验报告
+        ↓
+完整 reproduce
+        ↓
+干净环境复现
+        ↓
+Git commit
+        ↓
+v1.0 release/tag
 ```
