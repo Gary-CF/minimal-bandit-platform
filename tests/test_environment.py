@@ -2,6 +2,8 @@ import numpy as np
 
 from envs.bernoulli_bandit import BernoulliBandit
 
+import pytest
+
 def test_deterministic_arms_return_expected_rewards()->None:
     rng=np.random.default_rng(0)
 
@@ -73,4 +75,42 @@ def test_same_seed_reproduces_reward_sequence()->None:
     assert rewards_one == rewards_two
 
 
+def test_bernoulli_rejects_invalid_arm_means() -> None:
+    rng = np.random.default_rng(0)
+
+    invalid_arm_means = [
+        [],
+        [-0.1, 0.5],
+        [0.5, 1.1],
+        [0.5, np.nan],
+        [[0.2, 0.8]],
+    ]
+
+    for arm_means in invalid_arm_means:
+        with pytest.raises(ValueError):
+            BernoulliBandit(
+                arm_means=arm_means,
+                rng=rng,
+            )
+
+
+def test_bernoulli_rejects_invalid_actions() -> None:
+    env = BernoulliBandit(
+        arm_means=[0.2, 0.8],
+        rng=np.random.default_rng(0),
+    )
+
+    with pytest.raises(ValueError):
+        env.step(-1)
+
+    with pytest.raises(ValueError):
+        env.step(len(env.arm_means))
+
+    with pytest.raises(ValueError):
+        env.pseudo_regret(-1)
+
+    with pytest.raises(ValueError):
+        env.pseudo_regret(
+            len(env.arm_means)
+        )
 

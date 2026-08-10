@@ -60,9 +60,9 @@ class GaussianBandit:
         执行动作，并返回一次Gaussian 随机奖励
         """
 
-        if not 0<=action<=len(self.arm_means):
+        if not 0<=action<len(self.arm_means):
             raise ValueError(
-                f"invalid action:{action}"
+                f"invalid action: {action}"
             )
         reward = self.rng.normal(
             loc=self.arm_means[action],
@@ -78,6 +78,11 @@ class GaussianBandit:
         """
         计算选择该动作造成的单步pseudo-regret
         """
+        if not 0<=action<len(self.arm_means):
+            raise ValueError(
+                f"invalid action: {action}"
+            )
+        
         regret=(
             self.best_mean-self.arm_means[action]
         )

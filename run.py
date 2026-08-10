@@ -383,16 +383,17 @@ def run_single_experiment(
         assert isinstance(algorithm ,UCB1)
         # UCB1 的初始化阶段会依次选择所有臂。
         assert first_actions == list(
-            range(num_arms)
+            range(min(horizon,num_arms))
         )
 
         assert int(
             algorithm.counts.sum()
         ) == horizon
 
-        assert np.all(
+        if horizon >= num_arms:
+            assert np.all(
             algorithm.counts >= 1
-        )
+            )
 
         assert np.array_equal(
             algorithm.counts,
@@ -451,7 +452,7 @@ def run_single_experiment(
 
     # UCB-V 的初始化阶段应依次选择所有臂。
         assert first_actions == list(
-        range(num_arms)
+        range(min(horizon,num_arms))
     )
 
     # 算法总更新次数应等于实验 horizon。
@@ -460,9 +461,10 @@ def run_single_experiment(
     ) == horizon
 
     # 初始化后，每个臂至少被选择一次。
-        assert np.all(
-        algorithm.counts >= 1
-    )
+        if horizon>=num_arms:
+            assert np.all(
+            algorithm.counts >= 1
+            )
 
     # 算法内部计数应与实验端计数一致。
         assert np.array_equal(
