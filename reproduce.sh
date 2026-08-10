@@ -9,31 +9,35 @@ echo "Bandit Platform v1.0 Reproduction"
 echo "========================================"
 
 echo
-echo "[1/6] Cleaning generated outputs..."
+echo "[1/7] Cleaning generated outputs..."
 rm -rf results figures
 
 echo
-echo "[2/6] Running automated tests..."
+echo "[2/7] Running automated tests..."
 python -m pytest -q
 
 echo
-echo "[3/6] Running easy-gap benchmark..."
+echo "[3/7] Running easy-gap benchmark..."
 python run.py \
     --config configs/easy_gap.json
 
 echo
-echo "[4/6] Running hard-gap benchmark..."
+echo "[4/7] Running hard-gap benchmark..."
 python run.py \
     --config configs/hard_gap.json
 
 echo
-echo "[5/6] Running horizon benchmark..."
+echo "[5/7] Running horizon benchmark..."
 python run.py \
     --config configs/different_horizon.json
 
 echo
-echo "[6/6] Generating benchmark figures..."
+echo "[6/7] Generating benchmark figures..."
 python plots/plot_benchmarks.py
+
+echo
+echo "[7/7] Generating benchmark summary..."
+python scripts/summarize_benchmarks.py
 
 echo
 echo "Checking generated outputs..."
@@ -51,6 +55,7 @@ test -f figures/easy_gap_regret.png
 test -f figures/hard_gap_regret.png
 test -f figures/horizon_comparison.png
 test -f figures/action_frequency.png
+test -f reports/benchmark_summary.csv
 
 easy_gap_count=$(
     find results/easy_gap \
@@ -85,4 +90,5 @@ echo "Easy-gap runs:       $easy_gap_count"
 echo "Hard-gap runs:       $hard_gap_count"
 echo "Horizon runs:        $horizon_count"
 echo "Figures:             figures/"
+
 
