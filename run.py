@@ -528,6 +528,27 @@ def save_records(
           writer.writeheader()
           writer.writerows(records)
 
+def validate_results_directory(results_dir:Path,config:dict[str,Any],)->None:
+      if not results_dir.exists():
+            return
+      snapshot_path=(results_dir/"config_snapshot.json")
+      if not snapshot_path.exists():
+            if any(results_dir.iterdir()):
+                  raise RuntimeError(
+                        f"results directory '{results_dir}'"
+                        "already contains files but has no"
+                        "config_snapshot.json; refusing to"
+                        "overwrite potentially stale results"
+                  )
+            return
+      existing_config=load_config(str(snapshot_path))
+      if existing_config != config:
+            raise RuntimeError(
+                  f"results directory '{results_dir}'"
+                  "belongs to a different configuration;"
+                  "use a different experiment_name or"
+                  "remove the old results explicitly"
+            )
 
 def save_config_snapshot(config:dict[str,Any],output_path:Path)->None:
      output_path.parent.mkdir(parents=True,exist_ok=True)
@@ -573,6 +594,7 @@ def main()->None:
         Path("results")
         / experiment_name
     )
+    validate_results_directory(results_dir=results_dir,config=config)
 
     save_config_snapshot(
         config=config,
