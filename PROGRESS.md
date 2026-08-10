@@ -722,16 +722,17 @@ GitHub Release
 - [x] benchmark report synchronization；
 - [x] README / CONTEXT / PROGRESS synchronization；
 - [x] obsolete-script cleanup plan。
+- [x] 完成 repository hygiene；
+- [x] 确认 obsolete files 已删除；
+- [x] 确认 `.gitignore`；
+- [x] fresh virtual environment；
+- [x] `pip install -r requirements.txt`；
+- [x] fresh-env `python -m pytest -q`；
+- [x] fresh-env `bash reproduce.sh`；
 
 ### Release 前剩余
 
-- [ ] 完成 repository hygiene；
-- [ ] 确认 obsolete files 已删除；
-- [ ] 确认 `.gitignore`；
-- [ ] fresh virtual environment；
-- [ ] `pip install -r requirements.txt`；
-- [ ] fresh-env `python -m pytest -q`；
-- [ ] fresh-env `bash reproduce.sh`；
+
 - [ ] `git diff --check`；
 - [ ] working tree clean；
 - [ ] merge `release/v1.0`；

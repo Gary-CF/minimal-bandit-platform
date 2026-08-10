@@ -669,8 +669,8 @@ easy-gap 中最优臂与次优臂具有较清晰的 gap，Beta posterior 可以�
 - [ ] README、CONTEXT、PROGRESS 最终同步；
 - [ ] 删除 obsolete development scripts；
 - [ ] repository hygiene audit；
-- [ ] fresh virtual environment reproduction；
-- [ ] `git diff --check`；
+- [x] fresh virtual environment reproduction；
+- [x] `git diff --check`；
 - [ ] working tree clean；
 - [ ] merge release branch；
 - [ ] annotated tag `v1.0`；

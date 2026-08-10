@@ -611,11 +611,14 @@ Completed:
 - automatic benchmark summary generation;
 - benchmark report synchronization;
 - end-to-end reproduction from clean generated outputs.
+- repository hygiene audit;
+- fresh virtual-environment installation;
+- fresh-environment automated tests;
+- fresh-environment canonical benchmark reproduction;
+- clean post-reproduction Git diff verification.
 
-Remaining before the final `v1.0` tag:
+Remaining before the final `v1.0` release:
 
-- final documentation and repository hygiene audit;
-- fresh virtual-environment installation and reproduction;
 - final Git diff/status audit;
 - merge of the release branch;
 - annotated `v1.0` tag;

@@ -1270,20 +1270,47 @@ Reproduction completed successfully.
 - [x] end-to-end reproduction；
 - [x] main documentation synchronization；
 - [x] obsolete development-script cleanup。
+- [x] repository hygiene 最终检查；
+- [x] fresh virtual environment；
+- [x] `pip install -r requirements.txt`；
+- [x] fresh-env `python -m pytest -q`；
+- [x] fresh-env `bash reproduce.sh`；
 
 v1.0 tag 前仍需：
 
-- [ ] repository hygiene 最终检查；
-- [ ] fresh virtual environment；
-- [ ] `pip install -r requirements.txt`；
-- [ ] fresh-env `python -m pytest -q`；
-- [ ] fresh-env `bash reproduce.sh`；
+
 - [ ] `git diff --check`；
 - [ ] working tree clean；
 - [ ] merge `release/v1.0`；
 - [ ] annotated `v1.0` tag；
 - [ ] push GitHub；
 - [ ] GitHub Release。
+
+### Fresh-environment release audit
+
+v1.0 release candidate 已通过独立 Git worktree +
+fresh virtual environment 验证。
+
+验证环境：
+
+```text
+Python     3.12.3
+NumPy      2.5.2
+Matplotlib 3.11.1
+pytest     9.1.1
+```
+
+验证结果：
+
+```text
+fresh dependency installation  PASS
+fresh pytest                    PASS
+fresh canonical reproduction   PASS
+easy-gap runs                  40
+hard-gap runs                  40
+different-horizon runs        120
+post-reproduction git diff      clean
+```
 
 ---
 
