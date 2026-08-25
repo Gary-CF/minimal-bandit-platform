@@ -12,6 +12,7 @@ from algorithms.base import (BanditAlgorithm,RandomPolicy)
 from algorithms.ucb1 import UCB1
 from algorithms.thompson_sampling import ThompsonSampling
 from algorithms.ucb_v import UCBV
+from algorithms.epsilon_greedy import EpsilonGreedy
 
 from envs.bernoulli_bandit import BernoulliBandit
 from envs.gaussian_bandit import GaussianBandit
@@ -24,6 +25,9 @@ ExperimentRecord = dict[
 ]
 
 def parse_args()->argparse.Namespace:
+    '''
+    解析命令行参数，要求用户通过 --config 指定实验配置文件。
+    '''
     parser=argparse.ArgumentParser(
             description="Run multi-armed bandit experiments"
             )
@@ -38,6 +42,9 @@ def parse_args()->argparse.Namespace:
 def load_config(
           config_path:str,
 )->dict[str,Any]:
+    '''
+    打开配置文件，加载配置信息
+    '''
     with open(
           config_path,
           mode="r",
@@ -48,6 +55,9 @@ def load_config(
     return config
 
 def normalize_config(raw_config:dict[str,Any],)->dict[str,Any]:
+     '''
+     规范化参数列表
+     '''
      experiment_name=str(raw_config["experiment_name"])
 
      if not experiment_name:
@@ -108,7 +118,7 @@ def normalize_config(raw_config:dict[str,Any],)->dict[str,Any]:
                "horizons":horizons,
                "seeds":seeds,
           }
-          
+
 
 
 def create_environment(
@@ -153,7 +163,7 @@ def validate_algorithm_environment(
      而不是算法家族在理论上的全部适用范围。
      """
 
-     if algorithm_name=="random":
+     if algorithm_name=="random" or algorithm_name=="epsilon_greedy":
           return
 
      if algorithm_name=="ucb1":
@@ -180,10 +190,6 @@ def validate_algorithm_environment(
                 "rewards are bounded in [0, 1]; "
                 f"it cannot be used with {type(env).__name__}"
           )
-
-
-
-
 def create_algorithm(
         algorithm_config:dict[str,Any],
         num_arms:int,
@@ -214,11 +220,16 @@ def create_algorithm(
               num_arms=num_arms,
               reward_range=reward_range,
          )
+    if algorithm_name=="epsilon_greedy":
+          epsilon=float(parameters.get("epsilon",0.1))
+          return EpsilonGreedy(
+                num_arms=num_arms,
+                epsilon=epsilon,
+                rng=rng
+          )
     raise ValueError(
                 f"unknown algorithm: {algorithm_name}"
             )
-
-
 
 def run_single_experiment(
         seed:int,
@@ -477,9 +488,35 @@ def run_single_experiment(
         algorithm.reward_sums,
         reward_sums,
     )
+    # ---------- Epsilon-Greedy 专属测试 ----------
+
+    if algorithm_name == "epsilon_greedy":
+        assert isinstance(
+        algorithm,
+        EpsilonGreedy,
+    )
+
+        assert int(
+        algorithm.counts.sum()
+    ) == horizon
+
+        assert np.array_equal(
+        algorithm.counts,
+        action_counts,
+    )
+
+        assert np.allclose(
+        algorithm.reward_sum,
+        reward_sums,
+    )
+
+        assert np.allclose(
+        algorithm.estimated_reward,
+        empirical_means,
+    )
 
 
-    
+
     # ====================
     # 6、检查实验结果
     # ====================
@@ -582,7 +619,7 @@ def main()->None:
     horizons=[int(horizon) for horizon in config["horizons"]]
 
     algorithms=config["algorithms"]
-    
+
 
     seeds=[
          int(seed) for seed in config["seeds"]
@@ -612,7 +649,7 @@ def main()->None:
         f"running {num_experiments} experiments"
     )
 
-    
+
 
     for algorithm_config in algorithms:
         algorithm_name=str(algorithm_config["name"])
@@ -655,12 +692,11 @@ def main()->None:
                     records=records,
                     output_path=output_path,
                 )
-                         
+
 
 
 if __name__ == "__main__":
     main()
 
 
-        
-                         
+
