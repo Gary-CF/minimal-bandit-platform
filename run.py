@@ -13,6 +13,8 @@ from algorithms.ucb1 import UCB1
 from algorithms.thompson_sampling import ThompsonSampling
 from algorithms.ucb_v import UCBV
 from algorithms.epsilon_greedy import EpsilonGreedy
+from algorithms.explore_then_commit import ETC
+from algorithms.moss import MOSS
 
 from envs.bernoulli_bandit import BernoulliBandit
 from envs.gaussian_bandit import GaussianBandit
@@ -163,7 +165,8 @@ def validate_algorithm_environment(
      而不是算法家族在理论上的全部适用范围。
      """
 
-     if algorithm_name=="random" or algorithm_name=="epsilon_greedy":
+     if (algorithm_name=="random" or algorithm_name=="epsilon_greedy"
+         or algorithm_name=="etc") :
           return
 
      if algorithm_name=="ucb1":
@@ -190,10 +193,18 @@ def validate_algorithm_environment(
                 "rewards are bounded in [0, 1]; "
                 f"it cannot be used with {type(env).__name__}"
           )
+     if algorithm_name=="moss":
+           if isinstance(env,BernoulliBandit):
+                 return
+           raise ValueError(
+                 "the current MOSS implementation assumes rewards are bounded in [0, 1], "
+                 f"it cannot be used with {type(env).__name__}"
+           )
 def create_algorithm(
         algorithm_config:dict[str,Any],
         num_arms:int,
         rng:np.random.Generator,
+        horizon:int,
 )->BanditAlgorithm:
     algorithm_name=str(algorithm_config["name"])
     parameters=dict(algorithm_config.get("parameters",{},))
@@ -226,6 +237,17 @@ def create_algorithm(
                 num_arms=num_arms,
                 epsilon=epsilon,
                 rng=rng
+          )
+    if algorithm_name=="etc":
+          exploration_round_per_arm=parameters["exploration_rounds_per_arm"]
+          return ETC(
+                num_arms=num_arms,
+                exploration_rounds_per_arm=exploration_round_per_arm
+          )
+    if algorithm_name=="moss":
+          return MOSS(
+                num_arms=num_arms,
+                horizon=horizon,
           )
     raise ValueError(
                 f"unknown algorithm: {algorithm_name}"
@@ -270,7 +292,7 @@ def run_single_experiment(
 
 
     algorithm=create_algorithm(
-         algorithm_config=algorithm_config,num_arms=num_arms,rng=algorithm_rng)
+         algorithm_config=algorithm_config,num_arms=num_arms,rng=algorithm_rng,horizon=horizon)
 
     best_arm=int(np.argmax(env.arm_means))
 
@@ -514,7 +536,119 @@ def run_single_experiment(
         algorithm.estimated_reward,
         empirical_means,
     )
+    # ---------- ETC 专属测试 ----------
 
+    if algorithm_name == "etc":
+        assert isinstance(
+            algorithm,
+            ETC,
+        )
+
+        # 算法总更新次数应等于实验 horizon。
+        assert int(
+            algorithm.counts.sum()
+        ) == horizon
+
+        # 算法内部计数应与 runner 记录一致。
+        assert np.array_equal(
+            algorithm.counts,
+            action_counts,
+        )
+
+        # 算法内部奖励和应与 runner 记录一致。
+        assert np.allclose(
+            algorithm.reward_sums,
+            reward_sums,
+        )
+
+        # 算法内部经验均值应与 runner 计算结果一致。
+        assert np.allclose(
+            algorithm.estimated_mean,
+            empirical_means,
+        )
+
+        # 在探索阶段，动作必须严格按照
+        # 0, 1, ..., K-1, 0, 1, ... 的顺序进行。
+        exploration_steps = min(
+            horizon,
+            algorithm.explore_bound,
+        )
+
+        exploration_actions = [
+            int(record["action"])
+            for record in records[:exploration_steps]
+        ]
+
+        expected_exploration_actions = [
+            step % num_arms
+            for step in range(exploration_steps)
+        ]
+
+        assert (
+            exploration_actions
+            == expected_exploration_actions
+        )
+
+        # 如果实验在探索阶段结束前或刚好结束时停止，
+        # 就还没有下一次 select_action() 来触发 commit。
+        if horizon <= algorithm.explore_bound:
+            assert algorithm.committed_arm is None
+        else:
+            assert algorithm.committed_arm is not None
+            assert (
+                0
+                <= algorithm.committed_arm
+                < num_arms
+            )
+
+    # ---------- MOSS 专属测试 ----------
+
+    if algorithm_name == "moss":
+        assert isinstance(
+            algorithm,
+            MOSS,
+        )
+
+        # 初始化阶段依次选择所有尚未访问的臂。
+        assert first_actions == list(
+            range(min(horizon, num_arms))
+        )
+
+        # 算法总更新次数应等于实验 horizon。
+        assert int(
+            algorithm.counts.sum()
+        ) == horizon
+
+        # 如果 horizon 足够长，每个臂至少访问一次。
+        if horizon >= num_arms:
+            assert np.all(
+                algorithm.counts >= 1
+            )
+
+        # 算法内部计数应与 runner 记录一致。
+        assert np.array_equal(
+            algorithm.counts,
+            action_counts,
+        )
+
+        # 算法内部奖励和应与 runner 记录一致。
+        assert np.allclose(
+            algorithm.reward_sums,
+            reward_sums,
+        )
+
+        # 算法内部经验均值应与 runner 计算结果一致。
+        assert np.allclose(
+            algorithm.estimated_means,
+            empirical_means,
+        )
+
+        # 所有内部统计量都必须是有限数。
+        assert np.all(
+            np.isfinite(
+                algorithm.estimated_means
+            )
+        )
 
 
     # ====================

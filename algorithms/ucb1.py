@@ -13,8 +13,12 @@ class UCB1(BanditAlgorithm):
     """
 
     def __init__(self,num_arms:int)->None:
-        if num_arms <=0:
-            raise ValueError("num_arms must be positive")
+        if (
+            not isinstance(num_arms,int) 
+            or isinstance(num_arms,bool)
+            or num_arms<=0
+        ):
+            raise ValueError("num_arms must be positive integer")
         self.num_arms=num_arms
 
         # counts[i]:
@@ -77,7 +81,7 @@ class UCB1(BanditAlgorithm):
         if not 0<=action<self.num_arms:
             raise IndexError(
                 f"action {action} is outside"
-                f"[0,{self.num_arms}]"
+                f"[0,{self.num_arms})"
             )
 
         self.counts[action]+=1

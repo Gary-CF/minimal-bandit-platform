@@ -1,0 +1,15 @@
+{
+  "experiment_name": "smoke_moss_bernoulli",
+  "environment": {
+    "name": "bernoulli",
+    "arm_means": [0.2, 0.5, 0.8]
+  },
+  "algorithms": [
+    {
+      "name": "moss",
+      "parameters": {}
+    }
+  ],
+  "horizons": [2, 20],
+  "seeds": [0]
+}

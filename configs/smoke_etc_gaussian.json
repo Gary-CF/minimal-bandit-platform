@@ -1,0 +1,18 @@
+{
+  "experiment_name": "smoke_etc_gaussian",
+  "environment": {
+    "name": "gaussian",
+    "arm_means": [0.2, 0.5, 0.8],
+    "arm_stds": [0.1, 0.1, 0.1]
+  },
+  "algorithms": [
+    {
+      "name": "etc",
+      "parameters": {
+        "exploration_rounds_per_arm": 2
+      }
+    }
+  ],
+  "horizons": [4, 12],
+  "seeds": [0]
+}

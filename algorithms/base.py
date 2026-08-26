@@ -28,6 +28,12 @@ class RandomPolicy(BanditAlgorithm):
             num_arms:int,
             rng:np.random.Generator,
     )->None:
+        if (
+            not isinstance(num_arms,int) 
+            or isinstance(num_arms,bool)
+            or num_arms<=0
+        ):
+            raise ValueError("num_arms must be positive integer")
         self.num_arms=num_arms
         self.rng=rng
 

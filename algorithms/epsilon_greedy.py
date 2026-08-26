@@ -8,8 +8,12 @@ class EpsilonGreedy(BanditAlgorithm):
     def __init__(
         self,num_arms:int,epsilon:float,rng:np.random.Generator       
     )->None:
-        if num_arms<=0:
-            raise ValueError("num_arms must be positive")
+        if (
+            not isinstance(num_arms,int) 
+            or isinstance(num_arms,bool)
+            or num_arms<=0
+        ):
+            raise ValueError("num_arms must be positive integer")
         self.num_arms=num_arms
 
         if not 0<=epsilon<=1:
@@ -42,7 +46,7 @@ class EpsilonGreedy(BanditAlgorithm):
 
     def update(self, action: int, reward: float) -> None:
         if not 0<=action<self.num_arms:
-            raise IndexError(f"action {action} is outside [0,{self.num_arms}]")
+            raise IndexError(f"action {action} is outside [0,{self.num_arms})")
 
         self.counts[action]+=1
         self.reward_sum[action]+=reward

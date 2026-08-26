@@ -17,15 +17,18 @@ class UCBV(BanditAlgorithm):
             num_arms:int,
             reward_range:float = 1.0,
     )->None:
-        if num_arms <=0:
-            raise ValueError(
-                "num_arms must be positive"
-            )
-        if reward_range <= 0.0:
-            raise ValueError(
-                "reward_range must be positive"
-            )
+        if (
+            not isinstance(num_arms,int) 
+            or isinstance(num_arms,bool)
+            or num_arms<=0
+        ):
+            raise ValueError("num_arms must be positive integer")
         self.num_arms=num_arms
+
+        if (reward_range <= 0.0 or not isinstance(reward_range,float)):
+            raise ValueError(
+                "reward_range must be positive float"
+            )
         self.reward_range=float(reward_range)
 
         self.counts=np.zeros(num_arms,dtype=int)
