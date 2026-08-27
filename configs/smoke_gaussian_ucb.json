@@ -1,0 +1,18 @@
+{
+  "experiment_name": "smoke_gaussian_ucb",
+  "environment": {
+    "name": "gaussian",
+    "arm_means": [0.0, 0.5, 1.0],
+    "arm_stds": [1.0, 1.0, 1.0]
+  },
+  "algorithms": [
+    {
+      "name": "gaussian_ucb",
+      "parameters": {
+        "known_std": 1.0
+      }
+    }
+  ],
+  "horizon": 50,
+  "seeds": [42]
+}

@@ -1,0 +1,18 @@
+{
+  "experiment_name": "smoke_kl_ucb_gaussian_invalid",
+  "environment": {
+    "name": "gaussian",
+    "arm_means": [0.2, 0.5, 0.8],
+    "arm_stds": [1.0, 1.0, 1.0]
+  },
+  "algorithms": [
+    {
+      "name": "kl_ucb",
+      "parameters": {
+        "c": 3.0
+      }
+    }
+  ],
+  "horizon": 20,
+  "seeds": [42]
+}

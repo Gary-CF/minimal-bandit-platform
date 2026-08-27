@@ -15,6 +15,8 @@ from algorithms.ucb_v import UCBV
 from algorithms.epsilon_greedy import EpsilonGreedy
 from algorithms.explore_then_commit import ETC
 from algorithms.moss import MOSS
+from algorithms.kl_ucb import KLUCB
+from algorithms.gaussian_ucb import GaussianUCB
 
 from envs.bernoulli_bandit import BernoulliBandit
 from envs.gaussian_bandit import GaussianBandit
@@ -200,6 +202,21 @@ def validate_algorithm_environment(
                  "the current MOSS implementation assumes rewards are bounded in [0, 1], "
                  f"it cannot be used with {type(env).__name__}"
            )
+     if algorithm_name=="kl_ucb":
+          if isinstance(env,BernoulliBandit):
+               return
+          raise ValueError(
+               "the current KLUCB implementation "
+               "uses Bernoulli KL divergence; "
+               f"it cannot be used with {type(env).__name__}"
+          )
+     if algorithm_name=="gaussian_ucb":
+          if isinstance(env,GaussianBandit):
+               return
+          raise ValueError(
+               "GaussianUCB requires a GaussianBandit environment; "
+               f"it cannot be used with {type(env).__name__}"
+          )
 def create_algorithm(
         algorithm_config:dict[str,Any],
         num_arms:int,
@@ -249,6 +266,23 @@ def create_algorithm(
                 num_arms=num_arms,
                 horizon=horizon,
           )
+    if algorithm_name=="kl_ucb":
+         c=float(
+              parameters.get("c",3.0)
+         )
+         return KLUCB(
+              num_arms=num_arms,
+              c=c,
+         )
+    if algorithm_name=="gaussian_ucb":
+         known_std=float(
+              parameters["known_std"]
+         )
+
+         return GaussianUCB(
+              num_arms=num_arms,
+              known_std=known_std,
+         )
     raise ValueError(
                 f"unknown algorithm: {algorithm_name}"
             )
@@ -649,7 +683,122 @@ def run_single_experiment(
                 algorithm.estimated_means
             )
         )
+    # ---------- KL-UCB 专属测试 ----------
 
+    if algorithm_name == "kl_ucb":
+        assert isinstance(
+        algorithm,
+        KLUCB,
+    )
+
+    # 初始化阶段依次访问所有臂。
+        assert first_actions == list(
+        range(
+            min(
+                horizon,
+                num_arms,
+            )
+        )
+    )
+
+    # 总更新次数必须等于实验 horizon。
+        assert int(
+        algorithm.counts.sum()
+    ) == horizon
+
+    # horizon 足够时，每个臂至少被初始化一次。
+        if horizon >= num_arms:
+            assert np.all(
+            algorithm.counts >= 1
+        )
+
+    # 算法内部计数与 runner 统计一致。
+        assert np.array_equal(
+        algorithm.counts,
+        action_counts,
+    )
+
+    # 奖励和一致。
+        assert np.allclose(
+        algorithm.reward_sums,
+        reward_sums,
+    )
+
+    # 经验均值一致。
+        assert np.allclose(
+        algorithm.estimated_mean,
+        empirical_means,
+    )
+
+    # 内部统计不能出现 NaN / inf。
+        assert np.all(
+        np.isfinite(
+            algorithm.estimated_mean
+        )
+    )
+
+    # ---------- GaussianUCB 专属测试 ----------
+
+    if algorithm_name == "gaussian_ucb":
+        assert isinstance(
+        algorithm,
+        GaussianUCB,
+    )
+
+    # 初始化阶段依次访问所有臂。
+        assert first_actions == list(
+        range(
+            min(
+                horizon,
+                num_arms,
+            )
+        )
+    )
+
+    # 总更新次数正确。
+        assert int(
+        algorithm.counts.sum()
+    ) == horizon
+
+    # 初始化完成后每个臂至少访问一次。
+        if horizon >= num_arms:
+            assert np.all(
+            algorithm.counts >= 1
+        )
+
+    # 算法内部计数与 runner 一致。
+        assert np.array_equal(
+        algorithm.counts,
+        action_counts,
+    )
+
+    # 奖励和一致。
+        assert np.allclose(
+        algorithm.reward_sums,
+        reward_sums,
+    )
+
+    # 经验均值一致。
+        assert np.allclose(
+        algorithm.estimated_mean,
+        empirical_means,
+    )
+
+    # Gaussian reward 可以任意实数，
+    # 但统计量必须保持有限。
+        assert np.all(
+        np.isfinite(
+            algorithm.estimated_mean
+        )
+    )
+
+        assert (
+        np.isfinite(
+            algorithm.known_std
+        )
+    )
+
+        assert algorithm.known_std > 0
 
     # ====================
     # 6、检查实验结果
