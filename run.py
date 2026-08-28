@@ -17,6 +17,7 @@ from algorithms.explore_then_commit import ETC
 from algorithms.moss import MOSS
 from algorithms.kl_ucb import KLUCB
 from algorithms.gaussian_ucb import GaussianUCB
+from algorithms.gaussian_thompson_sampling import GaussianThompsonSampling
 
 from envs.bernoulli_bandit import BernoulliBandit
 from envs.gaussian_bandit import GaussianBandit
@@ -217,6 +218,14 @@ def validate_algorithm_environment(
                "GaussianUCB requires a GaussianBandit environment; "
                f"it cannot be used with {type(env).__name__}"
           )
+     if algorithm_name=="gaussian_thompson_sampling":
+          if isinstance(env,GaussianBandit):
+               return
+
+          raise ValueError(
+               "GaussianThompsonSamping requires a GaussianBandit environment; "
+               f"if cannot be used with {type(env).__name__}"
+          )
 def create_algorithm(
         algorithm_config:dict[str,Any],
         num_arms:int,
@@ -283,9 +292,30 @@ def create_algorithm(
               num_arms=num_arms,
               known_std=known_std,
          )
+    if algorithm_name=="gaussian_thompson_sampling":
+         prior_mean=float(
+              parameters.get("prior_mean",0.0)
+         )
+
+         prior_variance=float(
+              parameters.get("prior_variance",1.0)
+         )
+
+         noise_variance=float(
+              parameters["noise_variance"]
+         )
+         return GaussianThompsonSampling(
+              num_arms=num_arms,
+              prior_mean=prior_mean,
+              prior_variance=prior_variance,
+              noise_variance=noise_variance,
+              rng=rng,
+         )
+    
     raise ValueError(
                 f"unknown algorithm: {algorithm_name}"
             )
+    
 
 def run_single_experiment(
         seed:int,
@@ -800,6 +830,79 @@ def run_single_experiment(
 
         assert algorithm.known_std > 0
 
+    # ---------- Gaussian Thompson Sampling 专属测试 ----------
+
+    if algorithm_name == "gaussian_thompson_sampling":
+        assert isinstance(
+        algorithm,
+        GaussianThompsonSampling,
+    )
+
+    # 总更新次数正确
+        assert int(
+        algorithm.counts.sum()
+    ) == horizon
+
+    # sufficient statistics 与 runner 一致
+        assert np.array_equal(
+        algorithm.counts,
+        action_counts,
+    )
+
+        assert np.allclose(
+        algorithm.reward_sums,
+        reward_sums,
+    )
+
+    # posterior 合法
+        assert np.all(
+        np.isfinite(
+            algorithm.posterior_means
+        )
+    )
+
+        assert np.all(
+        np.isfinite(
+            algorithm.posterior_variances
+        )
+    )
+
+        assert np.all(
+        algorithm.posterior_variances > 0
+    )
+
+        assert np.all(
+        algorithm.posterior_variances
+        <= algorithm.prior_variance
+    )
+
+    # 根据整个实验的 sufficient statistics
+    # 独立重算 posterior
+        expected_variances = 1.0 / (
+        1.0 / algorithm.prior_variance
+        + action_counts
+        / algorithm.noise_variance
+    )
+
+        expected_means = (
+        expected_variances
+        * (
+            algorithm.prior_mean
+            / algorithm.prior_variance
+            + reward_sums
+            / algorithm.noise_variance
+        )
+    )
+
+        assert np.allclose(
+        algorithm.posterior_variances,
+        expected_variances,
+    )
+
+        assert np.allclose(
+        algorithm.posterior_means,
+        expected_means,
+    )
     # ====================
     # 6、检查实验结果
     # ====================
