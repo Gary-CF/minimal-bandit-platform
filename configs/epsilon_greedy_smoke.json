@@ -1,0 +1,23 @@
+{
+    "experiment_name": "epsilon_greedy_smoke",
+    "environment": {
+        "name": "bernoulli",
+        "arm_means": [
+            0.3,
+            0.5,
+            0.7
+        ]
+    },
+    "algorithms": [
+        {
+            "name": "epsilon_greedy",
+            "parameters": {
+                "epsilon": 0.1
+            }
+        }
+    ],
+    "horizon": 200,
+    "seeds": [
+        42
+    ]
+}

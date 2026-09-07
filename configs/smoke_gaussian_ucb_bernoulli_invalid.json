@@ -1,0 +1,17 @@
+{
+  "experiment_name": "smoke_gaussian_ucb_bernoulli_invalid",
+  "environment": {
+    "name": "bernoulli",
+    "arm_means": [0.2, 0.5, 0.8]
+  },
+  "algorithms": [
+    {
+      "name": "gaussian_ucb",
+      "parameters": {
+        "known_std": 1.0
+      }
+    }
+  ],
+  "horizon": 20,
+  "seeds": [42]
+}

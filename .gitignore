@@ -17,3 +17,11 @@ figures/
 # Other files
 *:Zone.Identifier
 
+
+# Isolated versioned benchmark outputs
+artifacts/
+.pytest_cache/
+
+# Keep the small frozen release figures as reviewable evidence
+!reports/v1_5/figures/
+!reports/v1_5/figures/*.png

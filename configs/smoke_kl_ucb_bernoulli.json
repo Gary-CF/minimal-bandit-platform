@@ -1,0 +1,17 @@
+{
+  "experiment_name": "smoke_kl_ucb_bernoulli",
+  "environment": {
+    "name": "bernoulli",
+    "arm_means": [0.2, 0.5, 0.8]
+  },
+  "algorithms": [
+    {
+      "name": "kl_ucb",
+      "parameters": {
+        "c": 3.0
+      }
+    }
+  ],
+  "horizon": 50,
+  "seeds": [42]
+}

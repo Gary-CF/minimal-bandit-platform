@@ -1,0 +1,28 @@
+{
+    "experiment_name": "epsilon_greedy_gaussian_smoke",
+    "environment": {
+        "name": "gaussian",
+        "arm_means": [
+            0.3,
+            0.5,
+            0.7
+        ],
+        "arm_stds": [
+            1.0,
+            1.0,
+            1.0
+        ]
+    },
+    "algorithms": [
+        {
+            "name": "epsilon_greedy",
+            "parameters": {
+                "epsilon": 0.1
+            }
+        }
+    ],
+    "horizon": 200,
+    "seeds": [
+        42
+    ]
+}

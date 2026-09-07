@@ -1,0 +1,53 @@
+{
+  "experiment_name": "gaussian_algorithms_smoke",
+  "environment": {
+    "name": "gaussian",
+    "arm_means": [
+      0.0,
+      0.5,
+      1.0
+    ],
+    "arm_stds": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "algorithms": [
+    {
+      "name": "random",
+      "parameters": {}
+    },
+    {
+      "name": "epsilon_greedy",
+      "parameters": {
+        "epsilon": 0.1
+      }
+    },
+    {
+      "name": "etc",
+      "parameters": {
+        "exploration_rounds_per_arm": 2
+      }
+    },
+    {
+      "name": "gaussian_ucb",
+      "parameters": {
+        "known_std": 1.0
+      }
+    },
+    {
+      "name": "gaussian_thompson_sampling",
+      "parameters": {
+        "prior_mean": 0.0,
+        "prior_variance": 1.0,
+        "noise_variance": 1.0
+      }
+    }
+  ],
+  "horizon": 100,
+  "seeds": [
+    0,
+    1
+  ]
+}

@@ -12,6 +12,12 @@ from algorithms.base import (BanditAlgorithm,RandomPolicy)
 from algorithms.ucb1 import UCB1
 from algorithms.thompson_sampling import ThompsonSampling
 from algorithms.ucb_v import UCBV
+from algorithms.epsilon_greedy import EpsilonGreedy
+from algorithms.explore_then_commit import ETC
+from algorithms.moss import MOSS
+from algorithms.kl_ucb import KLUCB
+from algorithms.gaussian_ucb import GaussianUCB
+from algorithms.gaussian_thompson_sampling import GaussianThompsonSampling
 
 from envs.bernoulli_bandit import BernoulliBandit
 from envs.gaussian_bandit import GaussianBandit
@@ -24,6 +30,9 @@ ExperimentRecord = dict[
 ]
 
 def parse_args()->argparse.Namespace:
+    '''
+    解析命令行参数，要求用户通过 --config 指定实验配置文件。
+    '''
     parser=argparse.ArgumentParser(
             description="Run multi-armed bandit experiments"
             )
@@ -38,6 +47,9 @@ def parse_args()->argparse.Namespace:
 def load_config(
           config_path:str,
 )->dict[str,Any]:
+    '''
+    打开配置文件，加载配置信息
+    '''
     with open(
           config_path,
           mode="r",
@@ -47,68 +59,116 @@ def load_config(
 
     return config
 
-def normalize_config(raw_config:dict[str,Any],)->dict[str,Any]:
-     experiment_name=str(raw_config["experiment_name"])
+ALGORITHM_PARAMETERS = {
+    "random": set(), "ucb1": set(), "thompson_sampling": set(),
+    "ucb_v": {"reward_range"}, "epsilon_greedy": {"epsilon"},
+    "etc": {"exploration_rounds_per_arm"}, "moss": set(),
+    "kl_ucb": {"c"}, "gaussian_ucb": {"known_std"},
+    "gaussian_thompson_sampling": {"prior_mean", "prior_variance", "noise_variance"},
+}
+REQUIRED_PARAMETERS = {
+    "etc": {"exploration_rounds_per_arm"},
+    "gaussian_ucb": {"known_std"},
+    "gaussian_thompson_sampling": {"noise_variance"},
+}
 
-     if not experiment_name:
-          raise ValueError("experiment_name must not be empty")
 
-     environment_config = dict(raw_config["environment"])
+def validate_integer(value: Any, name: str, minimum: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"{name} must be an integer >= {minimum}")
+    return value
 
-     raw_algorithms=list(raw_config["algorithms"])
 
-     algorithms:list[dict[str,Any]]=[]
+def validate_algorithm_config(config: dict[str, Any]) -> None:
+    if set(config) - {"name", "parameters"}:
+        raise ValueError("unknown algorithm configuration fields")
+    name = config.get("name")
+    if not isinstance(name, str) or name not in ALGORITHM_PARAMETERS:
+        raise ValueError(f"unknown algorithm: {name}")
+    params = config.get("parameters", {})
+    if not isinstance(params, dict):
+        raise ValueError("parameters must be a dictionary")
+    unknown = set(params) - ALGORITHM_PARAMETERS[name]
+    missing = REQUIRED_PARAMETERS.get(name, set()) - set(params)
+    if unknown or missing:
+        raise ValueError(f"{name}: unknown parameters {sorted(unknown)}, missing {sorted(missing)}")
+    for key, value in params.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value):
+            raise ValueError(f"{name}.{key} must be a finite number")
 
-     for raw_algorithm in raw_algorithms:
-          #兼容旧配置
-          #“ucb1" -> {"name":"ucb1","parameters":{}}
-          if isinstance(raw_algorithm,str):
-               algorithms.append(
-                    {
-                         "name":raw_algorithm,
-                         "parameters":{},
-                    }
-               )
-               continue
-          if not isinstance(raw_algorithm,dict,):
-               raise ValueError(
-                    "each algorithm config must be"
-                    "a string or a dictionary"
-               )
 
-          algorithms.append(
-               {
-                    "name":str(raw_algorithm["name"]),
-                    "parameters":dict(raw_algorithm.get("parameters",{},))
-               }
-          )
+def normalize_config(raw_config: dict[str, Any]) -> dict[str, Any]:
+    import re
+    if not isinstance(raw_config, dict):
+        raise ValueError("configuration must be a dictionary")
+    allowed = {"experiment_name", "environment", "algorithms", "horizon", "horizons", "seeds"}
+    if set(raw_config) - allowed:
+        raise ValueError("unknown experiment configuration fields")
+    name = raw_config.get("experiment_name")
+    if not isinstance(name, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", name) is None:
+        raise ValueError("experiment_name must be a simple directory name")
+    env = raw_config.get("environment")
+    if not isinstance(env, dict):
+        raise ValueError("environment must be a dictionary")
+    env_fields = {"name", "arm_means"}
+    if env.get("name") == "gaussian":
+        env_fields.add("arm_stds")
+    if set(env) != env_fields:
+        raise ValueError("unknown or missing environment fields")
+    for key in env_fields - {"name"}:
+        values = env[key]
+        if not isinstance(values, list) or not values or any(
+            isinstance(v, bool) or not isinstance(v, (int, float)) or not np.isfinite(v)
+            for v in values
+        ):
+            raise ValueError(f"{key} must be a nonempty list of finite numbers")
+    raw_algorithms = raw_config.get("algorithms")
+    if not isinstance(raw_algorithms, list) or not raw_algorithms:
+        raise ValueError("algorithms must be a nonempty list")
+    algorithms = []
+    for entry in raw_algorithms:
+        config = {"name": entry, "parameters": {}} if isinstance(entry, str) else entry
+        if not isinstance(config, dict):
+            raise ValueError("each algorithm must be a string or dictionary")
+        validate_algorithm_config(config)
+        algorithms.append({"name": config["name"], "parameters": dict(config.get("parameters", {}))})
+    names = [a["name"] for a in algorithms]
+    if len(set(names)) != len(names):
+        raise ValueError("duplicate algorithm names would overwrite CSVs; use separate experiment_name values")
+    if ("horizon" in raw_config) == ("horizons" in raw_config):
+        raise ValueError("specify exactly one of horizon or horizons")
+    horizons = raw_config.get("horizons", [raw_config.get("horizon")])
+    seeds = raw_config.get("seeds")
+    for label, values, minimum in [("horizons", horizons, 1), ("seeds", seeds, 0)]:
+        if not isinstance(values, list) or not values:
+            raise ValueError(f"{label} must be a nonempty list")
+        for value in values:
+            validate_integer(value, label, minimum)
+        if len(set(values)) != len(values):
+            raise ValueError(f"duplicate {label} are not allowed")
+    return {"experiment_name": name, "environment": dict(env), "algorithms": algorithms,
+            "horizons": list(horizons), "seeds": list(seeds)}
 
-     if "horizons" in raw_config:
-               horizons=[
-                    int(horizon) for horizon in raw_config["horizons"]
-               ]
-     else:
-               horizons=[
-                    int(raw_config["horizon"])
-               ]
-     seeds=[int(seed) for seed in raw_config["seeds"]]
 
-     if len(algorithms)==0:
-               raise ValueError("algorithms must not be empty")
-     if len(horizons)==0:
-               raise ValueError("horizons must not be empty")
-     if any(horizon <=0 for horizon in horizons):
-               raise ValueError("all horizons must be positive")
-     if len(seeds)==0:
-               raise ValueError("seeds must not be empty")
-     return{
-               "experiment_name":experiment_name,
-               "environment":environment_config,
-               "algorithms":algorithms,
-               "horizons":horizons,
-               "seeds":seeds,
-          }
-          
+def validate_model_parameters(algorithm: BanditAlgorithm, env: BanditEnvironment) -> None:
+    if isinstance(algorithm, GaussianThompsonSampling):
+        if not np.allclose(env.arm_stds ** 2, algorithm.noise_variance, rtol=1e-10, atol=0):
+            raise ValueError("Gaussian TS requires a common noise_variance matching every arm_stds ** 2")
+    if isinstance(algorithm, GaussianUCB):
+        if np.any(env.arm_stds > algorithm.known_std):
+            raise ValueError("known_std must upper-bound every Gaussian arm standard deviation")
+    if isinstance(algorithm, UCBV) and algorithm.reward_range < 1.0:
+        raise ValueError("Bernoulli UCB-V requires reward_range >= 1.0")
+
+
+def preflight_config(config: dict[str, Any]) -> None:
+    """Validate the entire batch before writing any output; never consume run RNGs."""
+    env = create_environment(config["environment"], np.random.default_rng(0))
+    for entry in config["algorithms"]:
+        validate_algorithm_environment(entry["name"], env)
+        for horizon in config["horizons"]:
+            algorithm = create_algorithm(entry, len(env.arm_means), np.random.default_rng(0), horizon)
+            validate_model_parameters(algorithm, env)
 
 
 def create_environment(
@@ -153,7 +213,8 @@ def validate_algorithm_environment(
      而不是算法家族在理论上的全部适用范围。
      """
 
-     if algorithm_name=="random":
+     if (algorithm_name=="random" or algorithm_name=="epsilon_greedy"
+         or algorithm_name=="etc") :
           return
 
      if algorithm_name=="ucb1":
@@ -180,15 +241,46 @@ def validate_algorithm_environment(
                 "rewards are bounded in [0, 1]; "
                 f"it cannot be used with {type(env).__name__}"
           )
+     if algorithm_name=="moss":
+           if isinstance(env,BernoulliBandit):
+                 return
+           raise ValueError(
+                 "the current MOSS implementation assumes rewards are bounded in [0, 1], "
+                 f"it cannot be used with {type(env).__name__}"
+           )
+     if algorithm_name=="kl_ucb":
+          if isinstance(env,BernoulliBandit):
+               return
+          raise ValueError(
+               "the current KLUCB implementation "
+               "uses Bernoulli KL divergence; "
+               f"it cannot be used with {type(env).__name__}"
+          )
+     if algorithm_name=="gaussian_ucb":
+          if isinstance(env,GaussianBandit):
+               return
+          raise ValueError(
+               "GaussianUCB requires a GaussianBandit environment; "
+               f"it cannot be used with {type(env).__name__}"
+          )
+     if algorithm_name=="gaussian_thompson_sampling":
+          if isinstance(env,GaussianBandit):
+               return
 
-
-
+          raise ValueError(
+               "GaussianThompsonSamping requires a GaussianBandit environment; "
+               f"if cannot be used with {type(env).__name__}"
+          )
+     raise ValueError(f"unknown algorithm: {algorithm_name}")
 
 def create_algorithm(
         algorithm_config:dict[str,Any],
         num_arms:int,
         rng:np.random.Generator,
+        horizon:int,
 )->BanditAlgorithm:
+    validate_algorithm_config(algorithm_config)
+    validate_integer(horizon, "horizon", 1)
     algorithm_name=str(algorithm_config["name"])
     parameters=dict(algorithm_config.get("parameters",{},))
 
@@ -214,11 +306,65 @@ def create_algorithm(
               num_arms=num_arms,
               reward_range=reward_range,
          )
+    if algorithm_name=="epsilon_greedy":
+          epsilon=float(parameters.get("epsilon",0.1))
+          return EpsilonGreedy(
+                num_arms=num_arms,
+                epsilon=epsilon,
+                rng=rng
+          )
+    if algorithm_name=="etc":
+          exploration_round_per_arm=parameters["exploration_rounds_per_arm"]
+          return ETC(
+                num_arms=num_arms,
+                exploration_rounds_per_arm=exploration_round_per_arm
+          )
+    if algorithm_name=="moss":
+          return MOSS(
+                num_arms=num_arms,
+                horizon=horizon,
+          )
+    if algorithm_name=="kl_ucb":
+         c=float(
+              parameters.get("c",3.0)
+         )
+         return KLUCB(
+              num_arms=num_arms,
+              c=c,
+         )
+    if algorithm_name=="gaussian_ucb":
+         known_std=float(
+              parameters["known_std"]
+         )
+
+         return GaussianUCB(
+              num_arms=num_arms,
+              known_std=known_std,
+         )
+    if algorithm_name=="gaussian_thompson_sampling":
+         prior_mean=float(
+              parameters.get("prior_mean",0.0)
+         )
+
+         prior_variance=float(
+              parameters.get("prior_variance",1.0)
+         )
+
+         noise_variance=float(
+              parameters["noise_variance"]
+         )
+         return GaussianThompsonSampling(
+              num_arms=num_arms,
+              prior_mean=prior_mean,
+              prior_variance=prior_variance,
+              noise_variance=noise_variance,
+              rng=rng,
+         )
+    
     raise ValueError(
                 f"unknown algorithm: {algorithm_name}"
             )
-
-
+    
 
 def run_single_experiment(
         seed:int,
@@ -233,6 +379,8 @@ def run_single_experiment(
 
     algorithm_name=str(algorithm_config["name"])
 
+    validate_integer(seed, "seed", 0)
+    validate_integer(horizon, "horizon", 1)
     seed_sequence=np.random.SeedSequence(seed)
     env_seed,algorithm_seed = seed_sequence.spawn(2)
 
@@ -259,7 +407,9 @@ def run_single_experiment(
 
 
     algorithm=create_algorithm(
-         algorithm_config=algorithm_config,num_arms=num_arms,rng=algorithm_rng)
+         algorithm_config=algorithm_config,num_arms=num_arms,rng=algorithm_rng,horizon=horizon)
+
+    validate_model_parameters(algorithm, env)
 
     best_arm=int(np.argmax(env.arm_means))
 
@@ -477,9 +627,335 @@ def run_single_experiment(
         algorithm.reward_sums,
         reward_sums,
     )
+    # ---------- Epsilon-Greedy 专属测试 ----------
 
+    if algorithm_name == "epsilon_greedy":
+        assert isinstance(
+        algorithm,
+        EpsilonGreedy,
+    )
 
-    
+        assert int(
+        algorithm.counts.sum()
+    ) == horizon
+
+        assert np.array_equal(
+        algorithm.counts,
+        action_counts,
+    )
+
+        assert np.allclose(
+        algorithm.reward_sum,
+        reward_sums,
+    )
+
+        assert np.allclose(
+        algorithm.estimated_reward,
+        empirical_means,
+    )
+    # ---------- ETC 专属测试 ----------
+
+    if algorithm_name == "etc":
+        assert isinstance(
+            algorithm,
+            ETC,
+        )
+
+        # 算法总更新次数应等于实验 horizon。
+        assert int(
+            algorithm.counts.sum()
+        ) == horizon
+
+        # 算法内部计数应与 runner 记录一致。
+        assert np.array_equal(
+            algorithm.counts,
+            action_counts,
+        )
+
+        # 算法内部奖励和应与 runner 记录一致。
+        assert np.allclose(
+            algorithm.reward_sums,
+            reward_sums,
+        )
+
+        # 算法内部经验均值应与 runner 计算结果一致。
+        assert np.allclose(
+            algorithm.estimated_mean,
+            empirical_means,
+        )
+
+        # 在探索阶段，动作必须严格按照
+        # 0, 1, ..., K-1, 0, 1, ... 的顺序进行。
+        exploration_steps = min(
+            horizon,
+            algorithm.explore_bound,
+        )
+
+        exploration_actions = [
+            int(record["action"])
+            for record in records[:exploration_steps]
+        ]
+
+        expected_exploration_actions = [
+            step % num_arms
+            for step in range(exploration_steps)
+        ]
+
+        assert (
+            exploration_actions
+            == expected_exploration_actions
+        )
+
+        # 如果实验在探索阶段结束前或刚好结束时停止，
+        # 就还没有下一次 select_action() 来触发 commit。
+        if horizon <= algorithm.explore_bound:
+            assert algorithm.committed_arm is None
+        else:
+            assert algorithm.committed_arm is not None
+            assert (
+                0
+                <= algorithm.committed_arm
+                < num_arms
+            )
+
+    # ---------- MOSS 专属测试 ----------
+
+    if algorithm_name == "moss":
+        assert isinstance(
+            algorithm,
+            MOSS,
+        )
+
+        # 初始化阶段依次选择所有尚未访问的臂。
+        assert first_actions == list(
+            range(min(horizon, num_arms))
+        )
+
+        # 算法总更新次数应等于实验 horizon。
+        assert int(
+            algorithm.counts.sum()
+        ) == horizon
+
+        # 如果 horizon 足够长，每个臂至少访问一次。
+        if horizon >= num_arms:
+            assert np.all(
+                algorithm.counts >= 1
+            )
+
+        # 算法内部计数应与 runner 记录一致。
+        assert np.array_equal(
+            algorithm.counts,
+            action_counts,
+        )
+
+        # 算法内部奖励和应与 runner 记录一致。
+        assert np.allclose(
+            algorithm.reward_sums,
+            reward_sums,
+        )
+
+        # 算法内部经验均值应与 runner 计算结果一致。
+        assert np.allclose(
+            algorithm.estimated_means,
+            empirical_means,
+        )
+
+        # 所有内部统计量都必须是有限数。
+        assert np.all(
+            np.isfinite(
+                algorithm.estimated_means
+            )
+        )
+    # ---------- KL-UCB 专属测试 ----------
+
+    if algorithm_name == "kl_ucb":
+        assert isinstance(
+        algorithm,
+        KLUCB,
+    )
+
+    # 初始化阶段依次访问所有臂。
+        assert first_actions == list(
+        range(
+            min(
+                horizon,
+                num_arms,
+            )
+        )
+    )
+
+    # 总更新次数必须等于实验 horizon。
+        assert int(
+        algorithm.counts.sum()
+    ) == horizon
+
+    # horizon 足够时，每个臂至少被初始化一次。
+        if horizon >= num_arms:
+            assert np.all(
+            algorithm.counts >= 1
+        )
+
+    # 算法内部计数与 runner 统计一致。
+        assert np.array_equal(
+        algorithm.counts,
+        action_counts,
+    )
+
+    # 奖励和一致。
+        assert np.allclose(
+        algorithm.reward_sums,
+        reward_sums,
+    )
+
+    # 经验均值一致。
+        assert np.allclose(
+        algorithm.estimated_mean,
+        empirical_means,
+    )
+
+    # 内部统计不能出现 NaN / inf。
+        assert np.all(
+        np.isfinite(
+            algorithm.estimated_mean
+        )
+    )
+
+    # ---------- GaussianUCB 专属测试 ----------
+
+    if algorithm_name == "gaussian_ucb":
+        assert isinstance(
+        algorithm,
+        GaussianUCB,
+    )
+
+    # 初始化阶段依次访问所有臂。
+        assert first_actions == list(
+        range(
+            min(
+                horizon,
+                num_arms,
+            )
+        )
+    )
+
+    # 总更新次数正确。
+        assert int(
+        algorithm.counts.sum()
+    ) == horizon
+
+    # 初始化完成后每个臂至少访问一次。
+        if horizon >= num_arms:
+            assert np.all(
+            algorithm.counts >= 1
+        )
+
+    # 算法内部计数与 runner 一致。
+        assert np.array_equal(
+        algorithm.counts,
+        action_counts,
+    )
+
+    # 奖励和一致。
+        assert np.allclose(
+        algorithm.reward_sums,
+        reward_sums,
+    )
+
+    # 经验均值一致。
+        assert np.allclose(
+        algorithm.estimated_mean,
+        empirical_means,
+    )
+
+    # Gaussian reward 可以任意实数，
+    # 但统计量必须保持有限。
+        assert np.all(
+        np.isfinite(
+            algorithm.estimated_mean
+        )
+    )
+
+        assert (
+        np.isfinite(
+            algorithm.known_std
+        )
+    )
+
+        assert algorithm.known_std > 0
+
+    # ---------- Gaussian Thompson Sampling 专属测试 ----------
+
+    if algorithm_name == "gaussian_thompson_sampling":
+        assert isinstance(
+        algorithm,
+        GaussianThompsonSampling,
+    )
+
+    # 总更新次数正确
+        assert int(
+        algorithm.counts.sum()
+    ) == horizon
+
+    # sufficient statistics 与 runner 一致
+        assert np.array_equal(
+        algorithm.counts,
+        action_counts,
+    )
+
+        assert np.allclose(
+        algorithm.reward_sums,
+        reward_sums,
+    )
+
+    # posterior 合法
+        assert np.all(
+        np.isfinite(
+            algorithm.posterior_means
+        )
+    )
+
+        assert np.all(
+        np.isfinite(
+            algorithm.posterior_variances
+        )
+    )
+
+        assert np.all(
+        algorithm.posterior_variances > 0
+    )
+
+        assert np.all(
+        algorithm.posterior_variances
+        <= algorithm.prior_variance
+    )
+
+    # 根据整个实验的 sufficient statistics
+    # 独立重算 posterior
+        expected_variances = 1.0 / (
+        1.0 / algorithm.prior_variance
+        + action_counts
+        / algorithm.noise_variance
+    )
+
+        expected_means = (
+        expected_variances
+        * (
+            algorithm.prior_mean
+            / algorithm.prior_variance
+            + reward_sums
+            / algorithm.noise_variance
+        )
+    )
+
+        assert np.allclose(
+        algorithm.posterior_variances,
+        expected_variances,
+    )
+
+        assert np.allclose(
+        algorithm.posterior_means,
+        expected_means,
+    )
     # ====================
     # 6、检查实验结果
     # ====================
@@ -570,6 +1046,7 @@ def main()->None:
     )
 
     config=normalize_config(raw_config)
+    preflight_config(config)
 
     experiment_name=str(
          config["experiment_name"]
@@ -582,7 +1059,7 @@ def main()->None:
     horizons=[int(horizon) for horizon in config["horizons"]]
 
     algorithms=config["algorithms"]
-    
+
 
     seeds=[
          int(seed) for seed in config["seeds"]
@@ -612,7 +1089,7 @@ def main()->None:
         f"running {num_experiments} experiments"
     )
 
-    
+
 
     for algorithm_config in algorithms:
         algorithm_name=str(algorithm_config["name"])
@@ -655,12 +1132,11 @@ def main()->None:
                     records=records,
                     output_path=output_path,
                 )
-                         
+
 
 
 if __name__ == "__main__":
     main()
 
 
-        
-                         
+

@@ -17,15 +17,19 @@ class UCBV(BanditAlgorithm):
             num_arms:int,
             reward_range:float = 1.0,
     )->None:
-        if num_arms <=0:
-            raise ValueError(
-                "num_arms must be positive"
-            )
-        if reward_range <= 0.0:
-            raise ValueError(
-                "reward_range must be positive"
-            )
+        if (
+            not isinstance(num_arms,int) 
+            or isinstance(num_arms,bool)
+            or num_arms<=0
+        ):
+            raise ValueError("num_arms must be positive integer")
         self.num_arms=num_arms
+
+        if (not isinstance(reward_range, (int, float)) or isinstance(reward_range, bool)
+                or not np.isfinite(reward_range) or reward_range <= 0.0):
+            raise ValueError(
+                "reward_range must be positive float"
+            )
         self.reward_range=float(reward_range)
 
         self.counts=np.zeros(num_arms,dtype=int)
@@ -113,6 +117,12 @@ class UCBV(BanditAlgorithm):
         return action
 
     def update(self,action:int, reward:float,)->None:
+        if not 0.0 <= reward <= 1.0:
+            raise ValueError("current bounded policy requires reward in [0, 1]")
+        if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
+            raise ValueError("action must be an integer")
+        if not np.isfinite(reward):
+            raise ValueError("reward must be finite")
         if not 0<=action<self.num_arms:
             raise ValueError( f"invalid action:{action}")
         if not np.isfinite(reward):
