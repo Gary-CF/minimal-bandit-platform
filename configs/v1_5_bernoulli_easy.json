@@ -1,0 +1,65 @@
+{
+  "experiment_name": "v1_5_bernoulli_easy",
+  "environment": {
+    "name": "bernoulli",
+    "arm_means": [
+      0.2,
+      0.5,
+      0.7
+    ]
+  },
+  "algorithms": [
+    {
+      "name": "random",
+      "parameters": {}
+    },
+    {
+      "name": "epsilon_greedy",
+      "parameters": {
+        "epsilon": 0.1
+      }
+    },
+    {
+      "name": "etc",
+      "parameters": {
+        "exploration_rounds_per_arm": 20
+      }
+    },
+    {
+      "name": "ucb1",
+      "parameters": {}
+    },
+    {
+      "name": "ucb_v",
+      "parameters": {}
+    },
+    {
+      "name": "moss",
+      "parameters": {}
+    },
+    {
+      "name": "kl_ucb",
+      "parameters": {}
+    },
+    {
+      "name": "thompson_sampling",
+      "parameters": {}
+    }
+  ],
+  "horizons": [
+    1000,
+    3000
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ]
+}

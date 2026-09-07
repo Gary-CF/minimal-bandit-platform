@@ -23,12 +23,15 @@ class GaussianThompsonSampling(BanditAlgorithm):
                 "num_arms must be a positive integer"
             )
 
-        if prior_variance <= 0:
+        if not np.isfinite(prior_mean):
+            raise ValueError("prior_mean must be finite")
+
+        if not np.isfinite(prior_variance) or prior_variance <= 0:
             raise ValueError(
                 "prior_variance must be positive"
             )
 
-        if noise_variance <= 0:
+        if not np.isfinite(noise_variance) or noise_variance <= 0:
             raise ValueError(
                 "noise_variance must be positive"
             )
@@ -74,6 +77,10 @@ class GaussianThompsonSampling(BanditAlgorithm):
     def update(
             self,action:int,reward:float,
     )->None:
+        if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
+            raise ValueError("action must be an integer")
+        if not np.isfinite(reward):
+            raise ValueError("reward must be finite")
         if not 0 <= action < self.num_arms:
             raise ValueError(
                 f"action must be in "

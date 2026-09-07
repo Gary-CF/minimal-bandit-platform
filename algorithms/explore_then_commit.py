@@ -52,6 +52,10 @@ class ETC(BanditAlgorithm):
         return self.committed_arm
 
     def update(self,action:int,reward:float)->None:
+        if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
+            raise ValueError("action must be an integer")
+        if not np.isfinite(reward):
+            raise ValueError("reward must be finite")
         if not 0<=action<self.num_arms:
             raise IndexError(
                 f"action {action} is outside"

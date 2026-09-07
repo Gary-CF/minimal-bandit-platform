@@ -59,71 +59,116 @@ def load_config(
 
     return config
 
-def normalize_config(raw_config:dict[str,Any],)->dict[str,Any]:
-     '''
-     规范化参数列表
-     '''
-     experiment_name=str(raw_config["experiment_name"])
+ALGORITHM_PARAMETERS = {
+    "random": set(), "ucb1": set(), "thompson_sampling": set(),
+    "ucb_v": {"reward_range"}, "epsilon_greedy": {"epsilon"},
+    "etc": {"exploration_rounds_per_arm"}, "moss": set(),
+    "kl_ucb": {"c"}, "gaussian_ucb": {"known_std"},
+    "gaussian_thompson_sampling": {"prior_mean", "prior_variance", "noise_variance"},
+}
+REQUIRED_PARAMETERS = {
+    "etc": {"exploration_rounds_per_arm"},
+    "gaussian_ucb": {"known_std"},
+    "gaussian_thompson_sampling": {"noise_variance"},
+}
 
-     if not experiment_name:
-          raise ValueError("experiment_name must not be empty")
 
-     environment_config = dict(raw_config["environment"])
+def validate_integer(value: Any, name: str, minimum: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"{name} must be an integer >= {minimum}")
+    return value
 
-     raw_algorithms=list(raw_config["algorithms"])
 
-     algorithms:list[dict[str,Any]]=[]
+def validate_algorithm_config(config: dict[str, Any]) -> None:
+    if set(config) - {"name", "parameters"}:
+        raise ValueError("unknown algorithm configuration fields")
+    name = config.get("name")
+    if not isinstance(name, str) or name not in ALGORITHM_PARAMETERS:
+        raise ValueError(f"unknown algorithm: {name}")
+    params = config.get("parameters", {})
+    if not isinstance(params, dict):
+        raise ValueError("parameters must be a dictionary")
+    unknown = set(params) - ALGORITHM_PARAMETERS[name]
+    missing = REQUIRED_PARAMETERS.get(name, set()) - set(params)
+    if unknown or missing:
+        raise ValueError(f"{name}: unknown parameters {sorted(unknown)}, missing {sorted(missing)}")
+    for key, value in params.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value):
+            raise ValueError(f"{name}.{key} must be a finite number")
 
-     for raw_algorithm in raw_algorithms:
-          #兼容旧配置
-          #“ucb1" -> {"name":"ucb1","parameters":{}}
-          if isinstance(raw_algorithm,str):
-               algorithms.append(
-                    {
-                         "name":raw_algorithm,
-                         "parameters":{},
-                    }
-               )
-               continue
-          if not isinstance(raw_algorithm,dict,):
-               raise ValueError(
-                    "each algorithm config must be"
-                    "a string or a dictionary"
-               )
 
-          algorithms.append(
-               {
-                    "name":str(raw_algorithm["name"]),
-                    "parameters":dict(raw_algorithm.get("parameters",{},))
-               }
-          )
+def normalize_config(raw_config: dict[str, Any]) -> dict[str, Any]:
+    import re
+    if not isinstance(raw_config, dict):
+        raise ValueError("configuration must be a dictionary")
+    allowed = {"experiment_name", "environment", "algorithms", "horizon", "horizons", "seeds"}
+    if set(raw_config) - allowed:
+        raise ValueError("unknown experiment configuration fields")
+    name = raw_config.get("experiment_name")
+    if not isinstance(name, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", name) is None:
+        raise ValueError("experiment_name must be a simple directory name")
+    env = raw_config.get("environment")
+    if not isinstance(env, dict):
+        raise ValueError("environment must be a dictionary")
+    env_fields = {"name", "arm_means"}
+    if env.get("name") == "gaussian":
+        env_fields.add("arm_stds")
+    if set(env) != env_fields:
+        raise ValueError("unknown or missing environment fields")
+    for key in env_fields - {"name"}:
+        values = env[key]
+        if not isinstance(values, list) or not values or any(
+            isinstance(v, bool) or not isinstance(v, (int, float)) or not np.isfinite(v)
+            for v in values
+        ):
+            raise ValueError(f"{key} must be a nonempty list of finite numbers")
+    raw_algorithms = raw_config.get("algorithms")
+    if not isinstance(raw_algorithms, list) or not raw_algorithms:
+        raise ValueError("algorithms must be a nonempty list")
+    algorithms = []
+    for entry in raw_algorithms:
+        config = {"name": entry, "parameters": {}} if isinstance(entry, str) else entry
+        if not isinstance(config, dict):
+            raise ValueError("each algorithm must be a string or dictionary")
+        validate_algorithm_config(config)
+        algorithms.append({"name": config["name"], "parameters": dict(config.get("parameters", {}))})
+    names = [a["name"] for a in algorithms]
+    if len(set(names)) != len(names):
+        raise ValueError("duplicate algorithm names would overwrite CSVs; use separate experiment_name values")
+    if ("horizon" in raw_config) == ("horizons" in raw_config):
+        raise ValueError("specify exactly one of horizon or horizons")
+    horizons = raw_config.get("horizons", [raw_config.get("horizon")])
+    seeds = raw_config.get("seeds")
+    for label, values, minimum in [("horizons", horizons, 1), ("seeds", seeds, 0)]:
+        if not isinstance(values, list) or not values:
+            raise ValueError(f"{label} must be a nonempty list")
+        for value in values:
+            validate_integer(value, label, minimum)
+        if len(set(values)) != len(values):
+            raise ValueError(f"duplicate {label} are not allowed")
+    return {"experiment_name": name, "environment": dict(env), "algorithms": algorithms,
+            "horizons": list(horizons), "seeds": list(seeds)}
 
-     if "horizons" in raw_config:
-               horizons=[
-                    int(horizon) for horizon in raw_config["horizons"]
-               ]
-     else:
-               horizons=[
-                    int(raw_config["horizon"])
-               ]
-     seeds=[int(seed) for seed in raw_config["seeds"]]
 
-     if len(algorithms)==0:
-               raise ValueError("algorithms must not be empty")
-     if len(horizons)==0:
-               raise ValueError("horizons must not be empty")
-     if any(horizon <=0 for horizon in horizons):
-               raise ValueError("all horizons must be positive")
-     if len(seeds)==0:
-               raise ValueError("seeds must not be empty")
-     return{
-               "experiment_name":experiment_name,
-               "environment":environment_config,
-               "algorithms":algorithms,
-               "horizons":horizons,
-               "seeds":seeds,
-          }
+def validate_model_parameters(algorithm: BanditAlgorithm, env: BanditEnvironment) -> None:
+    if isinstance(algorithm, GaussianThompsonSampling):
+        if not np.allclose(env.arm_stds ** 2, algorithm.noise_variance, rtol=1e-10, atol=0):
+            raise ValueError("Gaussian TS requires a common noise_variance matching every arm_stds ** 2")
+    if isinstance(algorithm, GaussianUCB):
+        if np.any(env.arm_stds > algorithm.known_std):
+            raise ValueError("known_std must upper-bound every Gaussian arm standard deviation")
+    if isinstance(algorithm, UCBV) and algorithm.reward_range < 1.0:
+        raise ValueError("Bernoulli UCB-V requires reward_range >= 1.0")
 
+
+def preflight_config(config: dict[str, Any]) -> None:
+    """Validate the entire batch before writing any output; never consume run RNGs."""
+    env = create_environment(config["environment"], np.random.default_rng(0))
+    for entry in config["algorithms"]:
+        validate_algorithm_environment(entry["name"], env)
+        for horizon in config["horizons"]:
+            algorithm = create_algorithm(entry, len(env.arm_means), np.random.default_rng(0), horizon)
+            validate_model_parameters(algorithm, env)
 
 
 def create_environment(
@@ -226,12 +271,16 @@ def validate_algorithm_environment(
                "GaussianThompsonSamping requires a GaussianBandit environment; "
                f"if cannot be used with {type(env).__name__}"
           )
+     raise ValueError(f"unknown algorithm: {algorithm_name}")
+
 def create_algorithm(
         algorithm_config:dict[str,Any],
         num_arms:int,
         rng:np.random.Generator,
         horizon:int,
 )->BanditAlgorithm:
+    validate_algorithm_config(algorithm_config)
+    validate_integer(horizon, "horizon", 1)
     algorithm_name=str(algorithm_config["name"])
     parameters=dict(algorithm_config.get("parameters",{},))
 
@@ -330,6 +379,8 @@ def run_single_experiment(
 
     algorithm_name=str(algorithm_config["name"])
 
+    validate_integer(seed, "seed", 0)
+    validate_integer(horizon, "horizon", 1)
     seed_sequence=np.random.SeedSequence(seed)
     env_seed,algorithm_seed = seed_sequence.spawn(2)
 
@@ -357,6 +408,8 @@ def run_single_experiment(
 
     algorithm=create_algorithm(
          algorithm_config=algorithm_config,num_arms=num_arms,rng=algorithm_rng,horizon=horizon)
+
+    validate_model_parameters(algorithm, env)
 
     best_arm=int(np.argmax(env.arm_means))
 
@@ -993,6 +1046,7 @@ def main()->None:
     )
 
     config=normalize_config(raw_config)
+    preflight_config(config)
 
     experiment_name=str(
          config["experiment_name"]

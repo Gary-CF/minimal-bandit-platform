@@ -7,6 +7,10 @@ from algorithms.base import BanditAlgorithm
 def binary_kl(p:float,q:float)->float:
     if not (0.0<=p<=1.0 and  0.0<=q<=1.0):
         raise ValueError("p and q should be in [0,1]") 
+    if p == q:
+        return 0.0
+    if q in (0.0, 1.0):
+        return float("inf")
     if p==0.0:
         return -np.log(1-q)
     if p==1.0:
@@ -14,7 +18,7 @@ def binary_kl(p:float,q:float)->float:
     return p*np.log(p/q)+(1-p)*np.log((1-p)/(1-q))
 
 def kl_ucb_bound(p:float,budget:float)->float:
-    if budget<0:
+    if not np.isfinite(budget) or budget<0:
         raise ValueError("budget must not be negative")
     if not 0.0<=p<=1.0:
         raise ValueError("p should be in [0,1]")
@@ -82,6 +86,12 @@ class KLUCB(BanditAlgorithm):
         return int(np.argmax(kl_bound))
 
     def update(self, action: int, reward: float) -> None:
+        if not 0.0 <= reward <= 1.0:
+            raise ValueError("current bounded policy requires reward in [0, 1]")
+        if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
+            raise ValueError("action must be an integer")
+        if not np.isfinite(reward):
+            raise ValueError("reward must be finite")
         if not 0<=action<self.num_arms:
             raise IndexError(
                 f"action {action} is outside"

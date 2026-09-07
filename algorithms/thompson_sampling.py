@@ -45,6 +45,10 @@ class ThompsonSampling(BanditAlgorithm):
             reward:float,
     )->None:
         """根据一次Bernoulli奖励更新被选择臂的后验。"""
+        if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
+            raise ValueError("action must be an integer")
+        if not np.isfinite(reward):
+            raise ValueError("reward must be finite")
         if not 0<=action<self.num_arms:
             raise ValueError(
                 f"action must be in [0,{self.num_arms}), got {action}"

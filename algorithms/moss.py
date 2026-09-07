@@ -55,6 +55,12 @@ class MOSS(BanditAlgorithm):
     def update(
             self,action:int,reward:float,
     )->None:
+        if not 0.0 <= reward <= 1.0:
+            raise ValueError("current bounded policy requires reward in [0, 1]")
+        if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
+            raise ValueError("action must be an integer")
+        if not np.isfinite(reward):
+            raise ValueError("reward must be finite")
         if not 0<=action<self.num_arms:
             raise IndexError(
                 f"action {action} is outside"

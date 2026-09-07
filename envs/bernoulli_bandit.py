@@ -38,6 +38,8 @@ class BernoulliBandit:
         """
         执行动作，并返回一次随机奖励
         """
+        if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
+            raise ValueError("action must be an integer")
         if not 0<=action<len(self.arm_means):
             raise ValueError(
                 f"invalid action:{action}"
@@ -53,6 +55,8 @@ class BernoulliBandit:
         """
         计算选择该动作造成的单步pseudo-regret
         """
+        if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
+            raise ValueError("action must be an integer")
         if not 0<=action< len(self.arm_means):
             raise ValueError(
                 f"invalid action: {action}"

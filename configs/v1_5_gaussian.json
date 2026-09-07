@@ -1,0 +1,64 @@
+{
+  "experiment_name": "v1_5_gaussian",
+  "environment": {
+    "name": "gaussian",
+    "arm_means": [
+      0.0,
+      0.2,
+      0.5
+    ],
+    "arm_stds": [
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "algorithms": [
+    {
+      "name": "random",
+      "parameters": {}
+    },
+    {
+      "name": "epsilon_greedy",
+      "parameters": {
+        "epsilon": 0.1
+      }
+    },
+    {
+      "name": "etc",
+      "parameters": {
+        "exploration_rounds_per_arm": 20
+      }
+    },
+    {
+      "name": "gaussian_ucb",
+      "parameters": {
+        "known_std": 1.0
+      }
+    },
+    {
+      "name": "gaussian_thompson_sampling",
+      "parameters": {
+        "prior_mean": 0.0,
+        "prior_variance": 1.0,
+        "noise_variance": 1.0
+      }
+    }
+  ],
+  "horizons": [
+    1000,
+    3000
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+  ]
+}
