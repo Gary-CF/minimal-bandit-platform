@@ -21,6 +21,7 @@ from algorithms.gaussian_thompson_sampling import GaussianThompsonSampling
 
 from envs.bernoulli_bandit import BernoulliBandit
 from envs.gaussian_bandit import GaussianBandit
+from envs.nonstationary_bernoulli_bandit import NonStationaryBernoulliBandit
 
 BanditEnvironment= GaussianBandit | BernoulliBandit
 
@@ -364,6 +365,36 @@ def create_algorithm(
     raise ValueError(
                 f"unknown algorithm: {algorithm_name}"
             )
+
+
+def run_nonstationary_episode(
+          env:NonStationaryBernoulliBandit,
+          algorithm:BanditAlgorithm,
+          horizon:int,
+)->list[ExperimentRecord]:
+    validate_integer(horizon,"horizon",1)
+
+    records: list[ExperimentRecord] = []
+    cumulative_regret = 0.0
+
+    for t in range(1,horizon+1):
+        action=(algorithm.select_action())
+        reward=float(env.step(action,t))
+        action=int(action)
+        algorithm.update(action,reward)
+        instant_regret=float(env.pseudo_regret(action,t))
+        cumulative_regret+=instant_regret
+
+        record={
+             "step":t,
+             "action":action,
+             "reward":reward,
+             "instant_regret":instant_regret,
+             "cumulative_regret":cumulative_regret,
+        }
+        records.append(record)
+    return records
+
     
 
 def run_single_experiment(
@@ -1035,7 +1066,6 @@ def save_config_snapshot(config:dict[str,Any],output_path:Path)->None:
           json.dump(
                config,file,indent=2,ensure_ascii=False,
           )
-
 
 
 def main()->None:
