@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import re
 
 from algorithms.base import (BanditAlgorithm,RandomPolicy)
 from algorithms.ucb1 import UCB1
@@ -22,6 +23,12 @@ from algorithms.gaussian_thompson_sampling import GaussianThompsonSampling
 from envs.bernoulli_bandit import BernoulliBandit
 from envs.gaussian_bandit import GaussianBandit
 from envs.nonstationary_bernoulli_bandit import NonStationaryBernoulliBandit
+
+from envs.mean_trajectories import (
+     StationaryMeans,
+     PiecewiseConstantMeans,
+     LinearDriftMeans,
+)
 
 BanditEnvironment= GaussianBandit | BernoulliBandit
 
@@ -97,6 +104,67 @@ def validate_algorithm_config(config: dict[str, Any]) -> None:
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value):
             raise ValueError(f"{name}.{key} must be a finite number")
 
+def normalize_algorithm_instances(
+          raw_algorithms:Any,
+)->list[dict[str,Any]]:
+
+    if not isinstance(raw_algorithms,list) or not raw_algorithms:
+         raise ValueError("algorithms must be a nonempty list")
+
+    instances:list[dict[str,Any]]=[]
+    seen_ids:set[str] = set()
+    allowed_fields={"id","name","parameters"}
+
+    for index,entry in enumerate(raw_algorithms):
+        if isinstance(entry,str):
+            entry = {"name":entry}
+        elif not isinstance(entry,dict):
+             raise ValueError(
+                  f"algorithms[{index}] must be as string or dictionary"
+             ) 
+
+        unknown_fields = set(entry)-allowed_fields
+        if unknown_fields:
+            raise ValueError(
+                 f"algorithms[{index}] has unknown fields:{unknown_fields!r}"
+            )
+
+        core_config = {
+             "name":entry.get("name"),
+             "parameters":entry.get("parameters",{})
+        }
+        validate_algorithm_config(core_config)
+
+        instance_id = entry.get("id",core_config["name"])
+        if(
+             not isinstance(instance_id,str)
+             or re.fullmatch(
+                  r"[A-Za-z0-9][A-Za-z0-9_,-]*",instance_id
+             ) is None
+        ):
+            raise ValueError(
+                 f"algorithms[{index}] has an invalid instance id:"
+                 f"{instance_id!r}"
+            )
+
+        if instance_id in seen_ids:
+             raise ValueError(
+                  f"duplicate algorithm instance id:{instance_id}"
+             )
+        seen_ids.add(instance_id)
+
+        instances.append(
+            {
+             "id":instance_id,
+             "name":core_config["name"],
+             "parameters":dict(core_config["parameters"]),
+            }
+        )
+        
+
+    return instances
+
+
 
 def normalize_config(raw_config: dict[str, Any]) -> dict[str, Any]:
     import re
@@ -170,6 +238,44 @@ def preflight_config(config: dict[str, Any]) -> None:
         for horizon in config["horizons"]:
             algorithm = create_algorithm(entry, len(env.arm_means), np.random.default_rng(0), horizon)
             validate_model_parameters(algorithm, env)
+
+def create_mean_trajectory(
+          trajectory_config: dict[str,Any],
+) -> StationaryMeans | PiecewiseConstantMeans | LinearDriftMeans:
+     if not isinstance(trajectory_config,dict):
+          raise ValueError("trajectory_config must be a dictionary")
+
+     name = trajectory_config.get("name")
+
+     if not isinstance(name,str):
+          raise ValueError("trajectory name is missing or must be a string")
+          
+     if name == "stationary":
+          if set(trajectory_config)!={"name","means"}:
+               raise ValueError("stationary trajectory only need name and means")
+          means=trajectory_config.get("means")
+          return StationaryMeans(means)
+     
+     elif name == "piecewise_constant":
+          if set(trajectory_config)!={"name","starts","levels"}:
+               raise ValueError("piecewise_constant trajectory only need name,starts and levels")
+          starts=trajectory_config.get("starts")
+          levels=trajectory_config.get("levels")
+          return PiecewiseConstantMeans(starts,levels)
+     
+     elif name == "linear_drift":
+          if set(trajectory_config)!={"name","start_means","end_means","start_t","end_t"}:
+               raise ValueError("linear_drift trajectory only need name,start_means,end_means,start_t,end_t")
+          start_means=trajectory_config.get("start_means")
+          end_means=trajectory_config.get("end_means")
+          start_t=trajectory_config.get("start_t")
+          end_t=trajectory_config.get("end_t")
+          return LinearDriftMeans(start_means,end_means,start_t,end_t)
+     raise ValueError(f"unsupported trajectory name:{name}")
+
+     
+
+
 
 
 def create_environment(
