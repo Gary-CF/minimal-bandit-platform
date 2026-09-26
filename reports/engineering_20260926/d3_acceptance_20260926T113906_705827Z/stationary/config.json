@@ -1,0 +1,45 @@
+{
+  "experiment_name": "d3_stationary",
+  "environment": {
+    "name": "nonstationary_bernoulli",
+    "trajectory": {
+      "name": "stationary",
+      "means": [
+        0.2,
+        0.7,
+        0.4
+      ]
+    }
+  },
+  "algorithms": [
+    {
+      "id": "random",
+      "name": "random",
+      "parameters": {}
+    },
+    {
+      "id": "ucb1",
+      "name": "ucb1",
+      "parameters": {}
+    },
+    {
+      "id": "eps005",
+      "name": "epsilon_greedy",
+      "parameters": {
+        "epsilon": 0.05
+      }
+    },
+    {
+      "id": "eps020",
+      "name": "epsilon_greedy",
+      "parameters": {
+        "epsilon": 0.2
+      }
+    }
+  ],
+  "horizon": 120,
+  "seeds": [
+    0,
+    1
+  ]
+}

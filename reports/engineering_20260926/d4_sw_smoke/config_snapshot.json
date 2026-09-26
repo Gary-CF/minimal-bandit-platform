@@ -1,0 +1,48 @@
+{
+  "experiment_name": "d4_sw_smoke",
+  "environment": {
+    "name": "nonstationary_bernoulli",
+    "trajectory": {
+      "name": "piecewise_constant",
+      "starts": [
+        1,
+        61
+      ],
+      "levels": [
+        [
+          0.2,
+          0.7,
+          0.4
+        ],
+        [
+          0.8,
+          0.2,
+          0.4
+        ]
+      ]
+    }
+  },
+  "algorithms": [
+    {
+      "id": "sw_w30",
+      "name": "sliding_window_ucb",
+      "parameters": {
+        "window_size": 30
+      }
+    },
+    {
+      "id": "sw_w60",
+      "name": "sliding_window_ucb",
+      "parameters": {
+        "window_size": 60
+      }
+    }
+  ],
+  "horizons": [
+    120
+  ],
+  "seeds": [
+    0,
+    1
+  ]
+}

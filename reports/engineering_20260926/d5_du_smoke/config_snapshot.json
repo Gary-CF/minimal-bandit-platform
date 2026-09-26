@@ -1,0 +1,48 @@
+{
+  "experiment_name": "d5_du_smoke",
+  "environment": {
+    "name": "nonstationary_bernoulli",
+    "trajectory": {
+      "name": "piecewise_constant",
+      "starts": [
+        1,
+        61
+      ],
+      "levels": [
+        [
+          0.2,
+          0.7,
+          0.4
+        ],
+        [
+          0.8,
+          0.2,
+          0.4
+        ]
+      ]
+    }
+  },
+  "algorithms": [
+    {
+      "id": "du_g090",
+      "name": "discounted_ucb",
+      "parameters": {
+        "gamma": 0.9
+      }
+    },
+    {
+      "id": "du_g099",
+      "name": "discounted_ucb",
+      "parameters": {
+        "gamma": 0.99
+      }
+    }
+  ],
+  "horizons": [
+    120
+  ],
+  "seeds": [
+    0,
+    1
+  ]
+}

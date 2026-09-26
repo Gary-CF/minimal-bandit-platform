@@ -1,0 +1,10 @@
+Command: ["/home/gary/projects/bandit-project/.venv/bin/python", "/home/gary/projects/bandit-project/run.py", "--config", "/home/gary/projects/bandit-project/results/d3_acceptance_20260926T113906_705827Z/drift/config.json"]
+running 8 experiments
+running experiment=d3_drift, environment=nonstationary_bernoulli, algorithm=random, algorithm_id=random,horizon=120, seed=0
+running experiment=d3_drift, environment=nonstationary_bernoulli, algorithm=random, algorithm_id=random,horizon=120, seed=1
+running experiment=d3_drift, environment=nonstationary_bernoulli, algorithm=ucb1, algorithm_id=ucb1,horizon=120, seed=0
+running experiment=d3_drift, environment=nonstationary_bernoulli, algorithm=ucb1, algorithm_id=ucb1,horizon=120, seed=1
+running experiment=d3_drift, environment=nonstationary_bernoulli, algorithm=epsilon_greedy, algorithm_id=eps005,horizon=120, seed=0
+running experiment=d3_drift, environment=nonstationary_bernoulli, algorithm=epsilon_greedy, algorithm_id=eps005,horizon=120, seed=1
+running experiment=d3_drift, environment=nonstationary_bernoulli, algorithm=epsilon_greedy, algorithm_id=eps020,horizon=120, seed=0
+running experiment=d3_drift, environment=nonstationary_bernoulli, algorithm=epsilon_greedy, algorithm_id=eps020,horizon=120, seed=1

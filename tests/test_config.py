@@ -30,6 +30,7 @@ def test_normalize_config_converts_single_horizon() -> None:
 
     assert config["algorithms"] == [
         {
+            "id":"ucb1",
             "name": "ucb1",
             "parameters": {},
         }

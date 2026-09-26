@@ -1,0 +1,34 @@
+{
+  "utc_time": "20260926T113906_705827Z",
+  "git_commit": "c3842cfd8f528f8cbc626149a846b52aa9f5cc55",
+  "git_branch": "dev/v2.1-bandit",
+  "git_status": "M run.py\n?? scripts/d3_cli_acceptance.py",
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "python_executable": "/home/gary/projects/bandit-project/.venv/bin/python",
+  "numpy_version": "2.5.2",
+  "matplotlib_version": "3.11.1",
+  "source_sha256": {
+    "run.py": "bcc7dc781f72fccdee9bdd9392da321421dc83e15ae4031c167c32b38165e1e5",
+    "algorithms/base.py": "4c8f6b116395c4ffd4d0fd1aa09f44c14ca60e3510b416009bd74f82a4287153",
+    "algorithms/epsilon_greedy.py": "27abebf4cc45babbd043d10d52c9348a5fb8458f182343290076558290d9619b",
+    "algorithms/explore_then_commit.py": "e415fc2feeac021ed9bc229f5ffa4a60a8e006f2402cfb7c873767e501728ca2",
+    "algorithms/gaussian_thompson_sampling.py": "de5ec2fcef9101388027d7e757f776d3e80efe4f78579d0d5b7e19eb6896f8c9",
+    "algorithms/gaussian_ucb.py": "df002d241658d78cdb50a41f72eef6a6b570fb5028e35190d81e92762429cc27",
+    "algorithms/kl_ucb.py": "7d2d8b9840af637ed3fa1a3d37531bb5310afc8fec2edcce3a4046d49ff33eeb",
+    "algorithms/moss.py": "232e906981c94eb3aef9e07b031140251b88553bff52989af2fd67d7eb2fd60d",
+    "algorithms/thompson_sampling.py": "6b5107d3721da7a58404f191332e47d753e0ea13d5928ef192d4c0fd705aa4b0",
+    "algorithms/ucb1.py": "5e890d9912610f14e5784f8812551455b488903f6502eaa8faaea0d75a7e8a6b",
+    "algorithms/ucb_v.py": "c1619409025167483cc59dee1ea1f4b086a0cc9dc10760ed4b5755125aab7af3",
+    "envs/bernoulli_bandit.py": "42acd78ed5d6a72ea8bf766224ea702e9c2616480e3806b91f0cc71a3e3c4840",
+    "envs/gaussian_bandit.py": "b33e4ae8424d9145043ea530e77d746285265c6b3d6485d0068126b565d89613",
+    "envs/mean_trajectories.py": "c31d5ee68c3840ea42c8e505e90713a7c2d5ddb408f1515217ccb4194ed8552b",
+    "envs/nonstationary_bernoulli_bandit.py": "8336e293eebc9d046ca65182858368b67db4048d32342f3808a7dffeaf26b4ce"
+  },
+  "checker_sha256": "c971fa8492bdf49923967fd7388667261d0d2ad8161ae2f064d3f852c758a6ed",
+  "horizon": 120,
+  "seeds": [
+    0,
+    1
+  ],
+  "scope": "D3 smoke, not D6 performance evidence"
+}

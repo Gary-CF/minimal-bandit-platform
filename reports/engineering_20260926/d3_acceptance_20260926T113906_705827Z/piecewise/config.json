@@ -1,0 +1,56 @@
+{
+  "experiment_name": "d3_piecewise",
+  "environment": {
+    "name": "nonstationary_bernoulli",
+    "trajectory": {
+      "name": "piecewise_constant",
+      "starts": [
+        1,
+        61
+      ],
+      "levels": [
+        [
+          0.2,
+          0.7,
+          0.4
+        ],
+        [
+          0.8,
+          0.2,
+          0.4
+        ]
+      ]
+    }
+  },
+  "algorithms": [
+    {
+      "id": "random",
+      "name": "random",
+      "parameters": {}
+    },
+    {
+      "id": "ucb1",
+      "name": "ucb1",
+      "parameters": {}
+    },
+    {
+      "id": "eps005",
+      "name": "epsilon_greedy",
+      "parameters": {
+        "epsilon": 0.05
+      }
+    },
+    {
+      "id": "eps020",
+      "name": "epsilon_greedy",
+      "parameters": {
+        "epsilon": 0.2
+      }
+    }
+  ],
+  "horizon": 120,
+  "seeds": [
+    0,
+    1
+  ]
+}

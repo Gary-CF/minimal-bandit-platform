@@ -1,0 +1,52 @@
+{
+  "experiment_name": "d3_drift",
+  "environment": {
+    "name": "nonstationary_bernoulli",
+    "trajectory": {
+      "name": "linear_drift",
+      "start_means": [
+        0.2,
+        0.7,
+        0.4
+      ],
+      "end_means": [
+        0.8,
+        0.2,
+        0.4
+      ],
+      "start_t": 1,
+      "end_t": 120
+    }
+  },
+  "algorithms": [
+    {
+      "id": "random",
+      "name": "random",
+      "parameters": {}
+    },
+    {
+      "id": "ucb1",
+      "name": "ucb1",
+      "parameters": {}
+    },
+    {
+      "id": "eps005",
+      "name": "epsilon_greedy",
+      "parameters": {
+        "epsilon": 0.05
+      }
+    },
+    {
+      "id": "eps020",
+      "name": "epsilon_greedy",
+      "parameters": {
+        "epsilon": 0.2
+      }
+    }
+  ],
+  "horizon": 120,
+  "seeds": [
+    0,
+    1
+  ]
+}

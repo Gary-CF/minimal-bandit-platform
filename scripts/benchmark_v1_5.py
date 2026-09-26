@@ -22,7 +22,8 @@ sys.path.insert(0, str(ROOT))
 from run import normalize_config, preflight_config
 
 SUITE = ('v1_5_bernoulli_easy', 'v1_5_bernoulli_hard', 'v1_5_gaussian')
-FIELDS = ['environment','algorithm','horizon','seed','step','action','reward','instant_regret','cumulative_regret']
+LEGACY_FIELDS = ['environment','algorithm','horizon','seed','step','action','reward','instant_regret','cumulative_regret']
+FIELDS = ['environment','algorithm','algorithm_id','horizon','seed','step','action','reward','instant_regret','cumulative_regret']
 
 
 def sha256(path):
@@ -58,20 +59,26 @@ def verify_experiment(output_root, config):
     if not snapshot.is_file() or json.loads(snapshot.read_text()) != config:
         raise ValueError(f'{folder}: missing or mismatched snapshot')
     env=config['environment']['name']
-    expected={f'{env}_{a["name"]}_T{T}_seed{s}.csv':(a['name'],T,s)
+    has_ids = ['id' in entry for entry in config['algorithms']]
+    if any(has_ids) and not all(has_ids):
+        raise ValueError('mixed legacy and instance configuration')
+    expected_fields = FIELDS if all(has_ids) else LEGACY_FIELDS
+    expected={f'{env}_{a.get("id", a["name"])}_T{T}_seed{s}.csv':(a.get('id', a['name']),a['name'],T,s)
               for a in config['algorithms'] for T in config['horizons'] for s in config['seeds']}
     actual={p.name for p in folder.iterdir()}
     if actual != set(expected)|{'config_snapshot.json'}:
         raise ValueError(f'{folder}: unexpected/missing files: {actual.symmetric_difference(set(expected)|{"config_snapshot.json"})}')
     means=np.asarray(config['environment']['arm_means'])
     runs=[]
-    for filename,(algorithm,T,seed) in sorted(expected.items()):
+    for filename,(algorithm_id,algorithm,T,seed) in sorted(expected.items()):
         actions=[]; regrets=[]; total=0.; seen=0
         with (folder/filename).open(newline='') as f:
             reader=csv.DictReader(f)
-            if reader.fieldnames != FIELDS: raise ValueError(f'{filename}: wrong CSV fields')
+            if reader.fieldnames != expected_fields: raise ValueError(f'{filename}: wrong CSV fields')
             for row in reader:
                 seen+=1
+                if expected_fields == FIELDS and row['algorithm_id'] != algorithm_id:
+                    raise ValueError(f'{filename}: inconsistent algorithm_id')
                 if (row['environment'],row['algorithm'],int(row['horizon']),int(row['seed']),int(row['step'])) != (env,algorithm,T,seed,seen):
                     raise ValueError(f'{filename}: inconsistent identity or steps')
                 action=int(row['action']);reward=float(row['reward'])
@@ -84,7 +91,7 @@ def verify_experiment(output_root, config):
                     raise ValueError(f'{filename}: incorrect pseudo-regret')
                 actions.append(action);regrets.append(cum)
         if seen!=T: raise ValueError(f'{filename}: expected {T} rows, got {seen}')
-        runs.append(dict(experiment=config['experiment_name'],algorithm=algorithm,horizon=T,seed=seed,
+        runs.append(dict(experiment=config['experiment_name'],algorithm=algorithm,algorithm_id=algorithm_id,horizon=T,seed=seed,
                          actions=np.array(actions),regrets=np.array(regrets)))
     return runs
 
@@ -103,9 +110,9 @@ def analyze(output_root, configs):
         total_rows+=sum(len(r['regrets']) for r in runs)
         for T in cfg['horizons']:
             fig,(ax,af)=plt.subplots(1,2,figsize=(14,5),layout='constrained')
-            algorithms=[a['name'] for a in cfg['algorithms']]
+            algorithms=[a.get('id', a['name']) for a in cfg['algorithms']]
             for index,algorithm in enumerate(algorithms):
-                chosen=[r for r in runs if r['algorithm']==algorithm and r['horizon']==T]
+                chosen=[r for r in runs if r['algorithm_id']==algorithm and r['horizon']==T]
                 matrix=np.stack([r['regrets'] for r in chosen]);n=len(matrix)
                 mean=matrix.mean(axis=0);std=matrix.std(axis=0,ddof=1) if n>1 else np.zeros(T)
                 sem=std/np.sqrt(n);steps=np.arange(1,T+1)
@@ -114,7 +121,7 @@ def analyze(output_root, configs):
                 freq=np.mean([np.bincount(r['actions'],minlength=len(cfg['environment']['arm_means']))/T for r in chosen],axis=0)
                 width=.8/len(algorithms)
                 af.bar(np.arange(len(freq))+(index-(len(algorithms)-1)/2)*width,freq,width,label=algorithm,color=line.get_color())
-                summary.append(dict(experiment=cfg['experiment_name'],algorithm=algorithm,horizon=T,num_seeds=n,
+                summary.append(dict(experiment=cfg['experiment_name'],algorithm=chosen[0]['algorithm'],algorithm_id=algorithm,horizon=T,num_seeds=n,
                                     mean_final_regret=float(mean[-1]),std_final_regret=float(std[-1]),sem_final_regret=float(sem[-1])))
             ax.set(xlabel='Step',ylabel='Cumulative pseudo-regret',title=f'{cfg["experiment_name"]}, T={T}\nMean ± SEM across 10 seeds')
             ax.grid(alpha=.2);ax.legend(fontsize=7)
@@ -131,7 +138,7 @@ def analyze(output_root, configs):
            '| 场景 | 算法 | T | seeds | 最终 regret 均值 | 样本标准差 | SEM |',
            '|---|---|---:|---:|---:|---:|---:|']
     for r in summary:
-        lines.append(f'| {r["experiment"]} | {r["algorithm"]} | {r["horizon"]} | {r["num_seeds"]} | {r["mean_final_regret"]:.3f} | {r["std_final_regret"]:.3f} | {r["sem_final_regret"]:.3f} |')
+        lines.append(f'| {r["experiment"]} | {r["algorithm_id"]} | {r["horizon"]} | {r["num_seeds"]} | {r["mean_final_regret"]:.3f} | {r["std_final_regret"]:.3f} | {r["sem_final_regret"]:.3f} |')
     lines+=['','## Random 解析核对','', '| 场景 | T | 理论期望 | 实验均值 |','|---|---:|---:|---:|']
     for cfg in configs:
         means=np.array(cfg['environment']['arm_means'])
