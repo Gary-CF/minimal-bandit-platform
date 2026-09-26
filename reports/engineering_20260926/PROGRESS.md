@@ -10,3 +10,9 @@
 - 待确认：D-UCB 极小正计数的数值稳定性检查。
 - 合并前收尾：将 SW-UCB / D-UCB 关键临时检查保存为 pytest 测试。
 - E-D6 未开始；尚未冻结或发布 v2.0。
+
+## 收工确认
+- D-UCB 极小正计数检查已通过：Tiny-positive-count selection passed。
+- E-D1—E-D5 已完成。
+- 下次先将关键临时检查保存为 pytest 测试，再合入 main。
+- E-D6 核心实验与 v2.0 冻结仍待完成。
