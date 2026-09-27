@@ -1,0 +1,36 @@
+{
+  "archived_at_utc": "20260927T101121_445384Z",
+  "git_commit_before_archive_commit": "32fe9c14454fc64b153a7778bc1ffb7b2a822281",
+  "git_branch": "dev/v2.1-bandit",
+  "git_status_at_archive": "?? envs/logistic_bandit.py\n?? scripts/archive_d7.py\n?? tests/test_logistic_bandit_week1.py",
+  "source_sha256_at_archive": {
+    "run.py": "9a418fa16f294ff68eaa9cd6432c9c2261a0cf061afa81f8bd24371e5072b6d0",
+    "tests/test_logistic_bandit_week1.py": "ac08d33cd66956121784d1b0ac096a9a41b55f2df547ad0811f62a080c1a2435",
+    "envs/bernoulli_bandit.py": "42acd78ed5d6a72ea8bf766224ea702e9c2616480e3806b91f0cc71a3e3c4840",
+    "envs/gaussian_bandit.py": "b33e4ae8424d9145043ea530e77d746285265c6b3d6485d0068126b565d89613",
+    "envs/logistic_bandit.py": "ea79deff786b6a60a6ce992b96f20e5ebdc427c25558be4d65328983a408a9cd",
+    "envs/mean_trajectories.py": "c31d5ee68c3840ea42c8e505e90713a7c2d5ddb408f1515217ccb4194ed8552b",
+    "envs/nonstationary_bernoulli_bandit.py": "8336e293eebc9d046ca65182858368b67db4048d32342f3808a7dffeaf26b4ce",
+    "algorithms/base.py": "4c8f6b116395c4ffd4d0fd1aa09f44c14ca60e3510b416009bd74f82a4287153",
+    "algorithms/discounted_ucb.py": "1f778c93437bfe1be1450a3b13f654849c37fbb8533e9ffa8bb7d79647a01dc1",
+    "algorithms/epsilon_greedy.py": "27abebf4cc45babbd043d10d52c9348a5fb8458f182343290076558290d9619b",
+    "algorithms/explore_then_commit.py": "e415fc2feeac021ed9bc229f5ffa4a60a8e006f2402cfb7c873767e501728ca2",
+    "algorithms/gaussian_thompson_sampling.py": "de5ec2fcef9101388027d7e757f776d3e80efe4f78579d0d5b7e19eb6896f8c9",
+    "algorithms/gaussian_ucb.py": "df002d241658d78cdb50a41f72eef6a6b570fb5028e35190d81e92762429cc27",
+    "algorithms/kl_ucb.py": "7d2d8b9840af637ed3fa1a3d37531bb5310afc8fec2edcce3a4046d49ff33eeb",
+    "algorithms/moss.py": "232e906981c94eb3aef9e07b031140251b88553bff52989af2fd67d7eb2fd60d",
+    "algorithms/sliding_window_ucb.py": "23b7f804f58cabacddfb59c1a780bb8b031c11017e565891b67f93267bb25a97",
+    "algorithms/thompson_sampling.py": "6b5107d3721da7a58404f191332e47d753e0ea13d5928ef192d4c0fd705aa4b0",
+    "algorithms/ucb1.py": "5e890d9912610f14e5784f8812551455b488903f6502eaa8faaea0d75a7e8a6b",
+    "algorithms/ucb_v.py": "c1619409025167483cc59dee1ea1f4b086a0cc9dc10760ed4b5755125aab7af3"
+  },
+  "test_results_reported_by_user": {
+    "specialized": "62 passed in 0.35s",
+    "full_suite": "449 passed in 1.49s",
+    "reported_local_time": "2026-09-27T18:04:49+08:00"
+  },
+  "provenance_note": "Test counts came from the user's terminal output, not a rerun. Source hashes describe files at archive time; pytest did not record source hashes.",
+  "archive_verification": "6 episode pairs: config, 200 rows, regret, exact CSV replay verified",
+  "omd_prereading": "Explained; final independent exercise pending",
+  "omd_implementation": "Not part of E-D7 scope"
+}

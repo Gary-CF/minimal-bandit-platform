@@ -1,0 +1,32 @@
+{
+  "features": [
+    [
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      1.0
+    ],
+    [
+      -1.0,
+      0.0
+    ],
+    [
+      0.0,
+      -1.0
+    ],
+    [
+      0.7071067811865475,
+      0.7071067811865475
+    ]
+  ],
+  "theta_star": [
+    1.0,
+    -0.5
+  ],
+  "policy": "random",
+  "seed": 1,
+  "horizon": 200,
+  "scope": "Environment integration only; policy does not estimate theta"
+}
