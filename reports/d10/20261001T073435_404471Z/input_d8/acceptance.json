@@ -1,0 +1,13 @@
+{
+  "accepted": true,
+  "scope": "E8 automated tests and fixed-stream fits only",
+  "user_interpretation_and_git_sync": "pending",
+  "pytest_command": [
+    "/home/gary/projects/bandit-project/.venv/bin/python",
+    "-m",
+    "pytest",
+    "-q"
+  ],
+  "pytest_returncode": 0,
+  "all_five_prefixes_accepted": true
+}
