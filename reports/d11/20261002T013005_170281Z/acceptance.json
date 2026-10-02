@@ -1,0 +1,17 @@
+{
+  "accepted": true,
+  "solver_failures": 0,
+  "scope": "E11 stationary experiment and cost measurements",
+  "beta_mode": "paper_v2_literal",
+  "stage": "complete",
+  "git_sync_and_interpretation": "pending",
+  "pytest_returncode": 0,
+  "current": {
+    "episode": "profile_T5000_seed102",
+    "step": 5000,
+    "phase": "update"
+  },
+  "smoke_replay_passed": true,
+  "formal_episodes_completed": 10,
+  "profile_runs_completed": 9
+}

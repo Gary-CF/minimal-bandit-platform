@@ -1,0 +1,23 @@
+{
+  "head": {
+    "command": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "returncode": 0,
+    "stdout": "26f1b879cbea84e7be64146bcfd7ae24abf01860\n",
+    "stderr": ""
+  },
+  "status": {
+    "command": [
+      "git",
+      "status",
+      "--short",
+      "--branch"
+    ],
+    "returncode": 0,
+    "stdout": "## dev/v2.1-bandit...origin/dev/v2.1-bandit\n?? algorithms/logistic_omd.py\n?? scripts/d11_stationary.py\n?? scripts/d11_stationary_README.md\n?? tests/test_logistic_omd_policy_week2.py\n",
+    "stderr": ""
+  }
+}

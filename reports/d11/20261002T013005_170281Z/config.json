@@ -1,0 +1,102 @@
+{
+  "d": 3,
+  "K": 10,
+  "T": 1000,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "feature_seed": 20261001,
+  "features": [
+    [
+      -0.11298922946976139,
+      0.7605737734862087,
+      -0.6393441710915796
+    ],
+    [
+      0.10609118348905291,
+      0.9421489988715882,
+      -0.3179621435189355
+    ],
+    [
+      0.10867548808609381,
+      0.7308589252552193,
+      0.6738210961850594
+    ],
+    [
+      -0.7897662662003405,
+      -0.2065487281291628,
+      0.5775871083050576
+    ],
+    [
+      -0.6576526817451388,
+      0.46472813492385406,
+      0.5928918204897274
+    ],
+    [
+      -0.00719989632448603,
+      0.9881745793858175,
+      0.15316384086519733
+    ],
+    [
+      0.5905323160170479,
+      0.4205871878517168,
+      0.6887510443945083
+    ],
+    [
+      -0.8902653934129061,
+      0.4241612820046208,
+      0.16587566469967804
+    ],
+    [
+      0.5985343968864846,
+      -0.4140335099762825,
+      -0.6858081571113396
+    ],
+    [
+      0.2773363577702552,
+      0.04318621449857683,
+      0.9598018001316792
+    ]
+  ],
+  "theta_star_environment_only": [
+    1.0,
+    -0.5,
+    0.75
+  ],
+  "radius": 2.0,
+  "eta": 3.0,
+  "lambda": 126.0,
+  "delta": 0.05,
+  "algorithms": [
+    "random",
+    "omd_paper_v2_literal"
+  ],
+  "beta_mode": "paper_v2_literal",
+  "paper": "arXiv:2507.11847v2",
+  "beta_formula": "sqrt(4*lambda*S^2 + 2*eta*log(1/delta) + d*(6*eta^2+eta)*log1p(0.25/lambda))",
+  "paper_discrepancy": "PDF p6 literal beta omits time; Appendix A.1 p14 includes time. Literal reproduction, not a resolution of theoretical inconsistency.",
+  "smoke": {
+    "seed": 20261011,
+    "horizon": 50,
+    "repeats": 2
+  },
+  "profiling": {
+    "horizons": [
+      200,
+      1000,
+      5000
+    ],
+    "seeds": [
+      100,
+      101,
+      102
+    ],
+    "note": "fixed d,K; timings include instrumentation overhead; no retuning"
+  },
+  "rng": "SeedSequence(seed).spawn(2): environment, policy. Same uniforms across algorithms do not imply identical observed rewards.",
+  "failure_policy": "stop, retain partial episode, no retries or fallback action"
+}
