@@ -1,0 +1,23 @@
+{
+  "head": {
+    "command": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "returncode": 0,
+    "stdout": "2c652ec83a418c3a9ed7250b0b1dfc5ee72859f8\n",
+    "stderr": ""
+  },
+  "status": {
+    "command": [
+      "git",
+      "status",
+      "--short",
+      "--branch"
+    ],
+    "returncode": 0,
+    "stdout": "## dev/v2.1-bandit...origin/dev/v2.1-bandit\n M CONTEXT.md\n M PROGRESS.md\n M README.md\n M RELEASE.md\n?? CONTEXT-v1.5.md\n?? PROGRESS-v1.5.md\n?? README-v1.5.md\n?? RELEASE-v1.5.md\n?? configs/v2_1.json\n?? docs/\n?? reproduce_v2_1.sh\n?? scripts/d12_logistic_stress.py\n?? scripts/reproduce_v2_1.py\n?? tests/test_v2_1_closeout.py\n",
+    "stderr": ""
+  }
+}

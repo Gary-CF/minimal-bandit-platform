@@ -1,0 +1,17 @@
+{
+  "reference": "reports/d11/20261002T013005_170281Z",
+  "reference_manifest_sha256": "20a569ca6342904ac9758860b26950ec9dfb93f6ac26610c1771709d669669f2",
+  "exact_trajectory_matches": {
+    "formal_random_seed4.csv": true,
+    "formal_omd_paper_v2_literal_seed4.csv": true,
+    "formal_random_seed3.csv": true,
+    "formal_omd_paper_v2_literal_seed3.csv": true,
+    "formal_omd_paper_v2_literal_seed2.csv": true,
+    "formal_omd_paper_v2_literal_seed0.csv": true,
+    "formal_omd_paper_v2_literal_seed1.csv": true,
+    "formal_random_seed1.csv": true,
+    "formal_random_seed0.csv": true,
+    "formal_random_seed2.csv": true
+  },
+  "timings_compared": false
+}

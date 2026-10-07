@@ -1,0 +1,43 @@
+{
+  "head": {
+    "command": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "returncode": 0,
+    "stdout": "99bd231f4729ffad383c4ba6c444c38daef8a3c5\n",
+    "stderr": ""
+  },
+  "branch": {
+    "command": [
+      "git",
+      "branch",
+      "--show-current"
+    ],
+    "returncode": 0,
+    "stdout": "dev/v2.1-bandit\n",
+    "stderr": ""
+  },
+  "status": {
+    "command": [
+      "git",
+      "status",
+      "--short",
+      "--branch"
+    ],
+    "returncode": 0,
+    "stdout": "## dev/v2.1-bandit...origin/dev/v2.1-bandit\n?? estimators/\n?? requirements-d8.txt\n?? scripts/d8_batch_reference.py\n?? scripts/d8_batch_reference_README.md\n?? tests/test_batch_logistic_week2.py\n",
+    "stderr": ""
+  },
+  "diff_stat": {
+    "command": [
+      "git",
+      "diff",
+      "--stat"
+    ],
+    "returncode": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+}

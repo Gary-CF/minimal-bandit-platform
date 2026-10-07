@@ -1,0 +1,53 @@
+{
+  "seed": 20260928,
+  "dimension": 2,
+  "num_arms": 5,
+  "horizon": 200,
+  "features": [
+    [
+      1,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      -1,
+      0
+    ],
+    [
+      0,
+      -1
+    ],
+    [
+      0.7071067811865475,
+      0.7071067811865475
+    ]
+  ],
+  "theta_star_for_generation_and_evaluation_only": [
+    1.0,
+    -0.5
+  ],
+  "prefixes": [
+    10,
+    25,
+    50,
+    100,
+    200
+  ],
+  "eval_count": 32,
+  "eval_angles": "2*pi*(j+0.5)/32, j=0..31",
+  "rng": "SeedSequence(seed).spawn(2): environment, uniform actions",
+  "solver": {
+    "l2": 1.0,
+    "radius": 2.0,
+    "ftol": 1e-12,
+    "maxiter": 500
+  },
+  "loss_reduction": "sum",
+  "initialization": "zeros for each prefix",
+  "feasibility_tol": 1e-07,
+  "optimality_tol": 1e-05,
+  "projected_gradient_step": 1.0
+}

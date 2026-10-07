@@ -1,0 +1,29 @@
+       message: Optimization terminated successfully
+       success: True
+        status: 0
+           fun: 31.0163006909505
+             x: [ 1.009e+00 -5.017e-01]
+           nit: 9
+           jac: [ 5.440e-08 -4.831e-09]
+          nfev: 11
+          njev: 9
+   multipliers: [ 0.000e+00]
+ solver_config:         method: SLSQP
+                          ftol: 1e-12
+                       maxiter: 500
+                            l2: 1.0
+                        radius: 2.0
+                loss_reduction: sum
+   diagnostics:                 feasibility_tol: 1e-07
+                                 optimality_tol: 1e-05
+                        projected_gradient_step: 1.0
+                                     theta_norm: 1.1265612339953557
+                           constraint_violation: 0.0
+                                  gradient_norm: 5.461793130452609e-08
+                    projected_gradient_residual: 5.461793130452609e-08
+                           objective_recomputed: 31.0163006909505
+                    objective_consistency_error: 0.0
+                objective_consistency_tolerance: 3.1016300690950502e-09
+                               diagnostic_error: None
+                                failure_reasons: []
+      accepted: True

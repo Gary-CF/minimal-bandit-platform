@@ -1,138 +1,64 @@
-# Minimal Bandit Platform — v1.5
+# Minimal Bandit Platform — v2.1
 
-一个小而透明的平稳随机多臂老虎机实验平台，用于学习探索—利用权衡、比较算法行为，并练习可复现科研工程。
+用于学习与小规模研究的 Bandit 平台：经典随机多臂策略、非平稳 Bernoulli 环境与遗忘基线、Logistic 批量估计及 One-Pass OMD。实验配置、逐轮日志、数值失败、来源和解释均可追踪。
 
-**v1.5：10 个策略、2 种环境、统一交互接口、严格配置校验及独立正式实验流水线。** 发布验收与实际实验结果见 [PROGRESS](PROGRESS.md) 和 [v1.5 实验报告](reports/v1_5/benchmark_v1_5.md)。
+v2.1 的计算验收由复现入口生成；正式冻结状态以 `v2.1` Git tag 和对应 `reports/v2_1/closeout.md` 为准。
 
-## 安装与快速开始
+## 安装与本阶段复现
 
-代码语法要求 Python 3.10+；本次发布实际验证 Python 3.12，锁定依赖请使用 `requirements-lock.txt`。其他 Python/平台组合尚未逐一认证。
+使用 Python 3.12；其他 Python/平台组合没有逐一认证。直接依赖包含 NumPy、SciPy、Matplotlib、pytest：
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements-lock.txt
-python -m pytest -q
-python run.py --config configs/gaussian_algorithms_smoke.json
+python -m pip install -r requirements-d8.txt
+python scripts/reproduce_v2_1.py --output-root artifacts/v2_1_local
+python scripts/reproduce_v2_1.py --output-root artifacts/v2_1_local --verify-only
 ```
 
-Windows PowerShell 使用 `.venv\Scripts\Activate.ps1` 激活。`requirements.txt` 只列直接依赖，供开发时选择兼容版本；正式复现优先使用锁定版本。
+也可用 `bash reproduce_v2_1.sh --output-root artifacts/v2_1_local`。输出目录须不存在或为空；失败现场保留，不删除、不自动重试。再次执行需选择新名字。历史 `requirements-lock.txt` 属于 v1.5，缺少 SciPy；本阶段每次记录实际 Python 和四个直接依赖版本至 `versions.json`。
 
-## 十个策略
+入口先执行一次全套 pytest，再完成：
 
-以下参数位于算法配置的 `parameters` 内。`K`、策略 RNG 和当前 horizon 由 runner 按需注入。
+| 实验 | 配置与数量 | 评估 |
+|---|---|---|
+| 固定流 OMD / Batch | 复用已归档 E8 的200条观测、5个前缀 | 相同固定评估点上的概率RMSE、调用时间 |
+| 平稳 Logistic 闭环 | d=3、K=10、T=1000、5 seeds；Random / OMD，10条轨迹 | 累计伪遗憾 |
+| 时间与状态 | T=200/1000/5000，各3次 | 更新/求解/选择/日志时间与数组载荷 |
+| 非平稳压力测试 | 第501轮突变、全程线性漂移；同样两个策略与5 seeds，20条轨迹 | 动态伪遗憾、更新前全臂概率RMSE |
 
-| 配置名 | Python 类 | 参数（省略时的默认值） | Bernoulli | Gaussian |
-|---|---|---|:---:|:---:|
-| `random` | `RandomPolicy` | 无 | ✓ | ✓ |
-| `ucb1` | `UCB1` | 无 | ✓ | — |
-| `ucb_v` | `UCBV` | `reward_range=1.0`，至少 1 | ✓ | — |
-| `thompson_sampling` | `ThompsonSampling` | 固定 Beta(1,1) 先验 | ✓ | — |
-| `epsilon_greedy` | `EpsilonGreedy` | `epsilon=0.1`，固定 ε | ✓ | ✓ |
-| `etc` | `ETC` | 必填正整数 `exploration_rounds_per_arm` | ✓ | ✓ |
-| `moss` | `MOSS` | 当前 horizon 自动注入 | ✓ | — |
-| `kl_ucb` | `KLUCB` | `c=3.0`，c≥0 | ✓ | — |
-| `gaussian_ucb` | `GaussianUCB` | 必填 `known_std` | — | ✓ |
-| `gaussian_thompson_sampling` | `GaussianThompsonSampling` | 必填 `noise_variance`；`prior_mean=0.0`、`prior_variance=1.0` | — | ✓ |
+生成五张关键图、`report.md`、逐轮CSV、源码快照、来源哈希和依赖版本，并复制到 `reports/v2_1/<输出目录名>/`，另生成 evidence ZIP。`--verify-only` 只读检查状态、文件全集、哈希、当前源码和逐轮指标。冻结后可对对应归档目录再次验证。
 
-总共 10 个不同策略实现（包含 Random 基线），不是每个环境都支持全部十个。Bernoulli 有 8 个可用策略，Gaussian 有 5 个，其中 3 个通用策略重叠。`GaussianBandit` 是环境，不计为算法。
+E8 的已验收数据是固定输入，不重新抽样；此前批量和单步正确性验证由归档及回归测试保留。本入口复现本阶段 Logistic 实验；v1.5 全量420次基准和 D6 非平稳 Bernoulli 大实验仍使用各自入口与历史归档，没有为本次收尾重复运行。
 
-Gaussian 环境接受逐臂标准差；Gaussian UCB 的标量 `known_std` 必须不小于每个臂的标准差，可以是保守共同上界。Gaussian TS 的公共 `noise_variance` 必须与每个臂的 `arm_stds**2` 匹配，不支持一般异方差模型。标准差 2 对应方差 4。
+## 当前能力与入口
 
-## 一轮实验与指标
-
-```python
-action = algorithm.select_action()
-reward = env.step(action)
-algorithm.update(action, reward)
-instant_regret = env.pseudo_regret(action)
-```
-
-环境生成奖励，策略只接收动作与实际反馈，runner 负责评估和记录。真实均值不进入策略。
-
-$$r_t=\mu^\star-\mu_{A_t},\qquad R_T=\sum_{t=1}^T r_t.$$
-
-日志中的 regret 均为 **pseudo-regret**，不是用一次随机奖励计算的 realized regret。它逐步非负、累计不减。Gaussian reward 可为负，不影响这一性质。
-
-## 配置约定
-
-```json
-{
-  "experiment_name": "my_comparison",
-  "environment": {"name": "bernoulli", "arm_means": [0.2, 0.5, 0.7]},
-  "algorithms": [
-    "random", "ucb1", "moss", "kl_ucb",
-    {"name": "epsilon_greedy", "parameters": {"epsilon": 0.1}},
-    {"name": "etc", "parameters": {"exploration_rounds_per_arm": 20}}
-  ],
-  "horizons": [1000, 3000],
-  "seeds": [0, 1, 2]
-}
-```
-
-保存为配置文件后执行 `python run.py --config <配置路径>`。单预算使用 `horizon`，与 `horizons` 二选一。所有算法 × horizon × seed 都重新实例化。
-
-- T 必须是真正的正整数；seed 是非负整数；拒绝 bool、小数截断和重复项。
-- 同一配置内不允许重复算法名。比较多个 ε 时，使用不同 `experiment_name` 的独立配置。
-- 未知字段、拼错参数名、缺失必填参数、NaN/Inf、非法环境—算法组合在整个 batch 写入前拒绝。
-- `experiment_name` 使用字母/数字开头及字母、数字、`_`、`.`、`-`，作为单个目录名，不接受路径。
-
-普通运行结果在当前工作目录的 `results/<experiment_name>/`：一个规范化 `config_snapshot.json`，以及 `<environment>_<algorithm>_T<horizon>_seed<seed>.csv`。
-
-CSV 字段为 `environment,algorithm,horizon,seed,step,action,reward,instant_regret,cumulative_regret`。step 从 1 开始，action 从 0 开始。已有快照不匹配时拒绝写入；相同配置允许重跑覆盖。普通 runner 尚不提供断点恢复、原子 batch 或完整源码溯源；正式 suite 提供额外校验与 manifest。
-
-## 一键复现 v1.5
-
-```bash
-bash reproduce_v1_5.sh
-```
-
-等价的跨平台入口：
-
-```bash
-python scripts/benchmark_v1_5.py
-```
-
-默认生成到 `artifacts/v1_5/`。**输出目录必须不存在或为空；不会删除旧实验。** 再跑一次请换新目录：
-
-```bash
-python scripts/benchmark_v1_5.py --output-root artifacts/v1_5_repeat
-python scripts/benchmark_v1_5.py --output-root artifacts/v1_5_repeat --verify-only
-```
-
-| 正式配置 | 环境 | 均值 | 算法数 | 预算 | seeds | CSV 数 |
-|---|---|---|---:|---|---|---:|
-| `v1_5_bernoulli_easy.json` | Bernoulli | [0.2,0.5,0.7] | 8 | 1000、3000 | 0–9 | 160 |
-| `v1_5_bernoulli_hard.json` | Bernoulli | [0.45,0.48,0.5] | 8 | 1000、3000 | 0–9 | 160 |
-| `v1_5_gaussian.json` | Gaussian，std 全为 1 | [0,0.2,0.5] | 5 | 1000、3000 | 0–9 | 100 |
-
-验收预期：**420 次实验、840,000 行记录、42 行统计、6 张图**。
-
-入口先运行 pytest，再运行全部配置；分析前严格检查预期文件集合、快照、CSV 字段、身份、步数、奖励及逐步 regret，拒绝缺失、混入或损坏结果。图显示跨 seed 均值 ± SEM，并展示所有配置臂的动作频率。SEM 不是单次运行的标准差或 95% 置信区间。
-
-输出根目录包含 `results/`、`figures/`、`reports/`、`logs/` 和 `suite_manifest.json`。manifest 记录状态、源码 SHA256、配置、Python/依赖、耗时及结果/报告哈希。`--verify-only` 不运行算法、不修改文件，检查来源及产物完整性。若源码变化，应在新目录重跑；失败目录保留诊断信息，不会自动冒充完成。
-
-已提交的精简实验证据位于 `reports/v1_5/`，原始大量 CSV 留在可再生输出目录。不同 NumPy 版本可能改变随机实现，数值复现应固定代码与锁定依赖。
-
-## 工程结构与阅读顺序
-
-| 位置 | 职责 |
+| 内容 | 入口/位置 |
 |---|---|
-| `algorithms/` | 选臂、状态更新；Random 在 base.py |
-| `envs/` | 采样、环境参数和 pseudo-regret |
-| `run.py` | 配置、工厂、全 batch 预校验、调度、日志和不变量 |
-| `configs/` | 旧配置、新 v1.5 正式配置、预期失败 smoke |
-| `tests/` | 算法、边界、兼容性、结果损坏回归 |
-| `scripts/benchmark_v1_5.py` | 独立安全复现、严格验证、汇总、绘图和 manifest |
-| `reports/v1_5/` | 冻结的正式汇总、图、运行元数据和发布验收 |
-| `CONTEXT.md` / `PROGRESS.md` | 开发契约 / 验收状态 |
-| `RELEASE.md` | 合入现有仓库及开源发布步骤 |
-| `reports/engineering_walkthrough_v1_5.md` | 算法复习、接口细节和 15 分钟讲解 |
+| 十个经典平稳策略，Bernoulli / Gaussian | `run.py`；[v1.5 使用说明](README-v1.5.md) 中的策略表和配置示例 |
+| 分段突变/线性漂移 Bernoulli，UCB1/SW-UCB/Discounted-UCB | `run.py`，`configs/d4_sw_smoke.json`、`configs/d5_du_smoke.json` |
+| Logistic 采样、稳定损失/梯度/Hessian | `envs/logistic_bandit.py` |
+| 正则化、球约束批量 Logistic 估计 | `estimators/batch_logistic.py`；`scripts/d8_batch_reference.py` |
+| OMD 受约束更新与乐观选臂 | `estimators/omd_logistic.py`；`algorithms/logistic_omd.py` |
+| 固定流、平稳闭环、压力测试 | `scripts/reproduce_v2_1.py`；`configs/v2_1.json` |
+| 公式对应、十分钟讲解 | [公式—代码表](docs/v2_1_formula_map.md)、[讲解提纲](docs/v2_1_walkthrough.md) |
+| 验收与发布 | [进度](PROGRESS.md)、[冻结步骤](RELEASE.md) |
 
-旧 `reproduce.sh`、`plots/plot_benchmarks.py`、`scripts/summarize_benchmarks.py` 保留为 v1.0 历史流程。**旧 reproduce.sh 会删除当前目录整个 results/figures，不要拿它执行 v1.5 复现。** 历史报告的旧发布清单不代表当前状态。
+Logistic 使用独立实验入口，没有把特征策略硬接入 `run.py` 的经典 `select_action()` 接口。非平稳 Logistic 是实验驱动提供真参数路径、逐轮复用 Logistic 环境；不新增一个声称具备非平稳保证的 OMD 算法。
 
-## 边界
+```bash
+python run.py --config configs/d4_sw_smoke.json
+python run.py --config configs/d5_du_smoke.json
+```
 
-平稳随机 bandit；无 contextual、linear、adversarial、non-stationary、neural bandit 或分布式功能。固定参数与有限预算实验不能证明普遍算法排名或严格渐近 regret 界。当前算法内部状态 O(K)，runner 每次将 T 行日志存入内存，为 O(T)。
+## 实验口径和边界
 
-许可证见 [LICENSE](LICENSE)。
+E10 使用同一 X/y 固定流；闭环策略的选臂影响后续观测。真实参数/均值只由环境和评估器使用。动态伪遗憾每轮以当时的最优臂为参照：
+
+$$R_T=\sum_{t=1}^T\left[\max_a\sigma(x_a^\top\theta_t^\star)-\sigma(x_{A_t}^\top\theta_t^\star)\right].$$
+
+正文原式 `paper_v2_literal` 是正式版本；正文/附录时间因子差异保留在公式说明中。`appendix_time` 是单独标注的备选模式，本阶段正式实验没有使用。OMD 在变化环境中的表现属于压力测试，不将平稳理论保证延伸为动态保证，也没有实现 DOMD-GLB、变化检测、重置或折扣 OMD。
+
+图中阴影为5 seeds的 SEM，不是95%置信区间。Batch仅五次重拟合与OMD逐步更新是不同工作量；96字节只统计 d=3 时 theta/H 数组。外部日志、Python对象及临时求解内存不在这个数字内。单个固定动作集和有限预算不支持普遍算法排名或复杂度证明。
+
+保留 v1.5 与 v2.0 历史证据；旧 `reproduce.sh` 会清理整个 results/figures，应使用对应版本的新入口。许可证见 [LICENSE](LICENSE)。

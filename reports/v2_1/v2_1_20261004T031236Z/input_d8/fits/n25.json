@@ -1,0 +1,43 @@
+{
+  "x": [
+    0.6325940660147924,
+    0.051042319783111315
+  ],
+  "fun": 16.619727605397294,
+  "jac": [
+    7.763865106369394e-10,
+    -3.957065272675031e-09
+  ],
+  "nit": 6,
+  "nfev": 8,
+  "njev": 6,
+  "status": 0,
+  "message": "Optimization terminated successfully",
+  "success": true,
+  "multipliers": [
+    0.0
+  ],
+  "solver_config": {
+    "method": "SLSQP",
+    "ftol": 1e-12,
+    "maxiter": 500,
+    "l2": 1.0,
+    "radius": 2.0,
+    "loss_reduction": "sum"
+  },
+  "diagnostics": {
+    "feasibility_tol": 1e-07,
+    "optimality_tol": 1e-05,
+    "projected_gradient_step": 1.0,
+    "theta_norm": 0.6346499592420761,
+    "constraint_violation": 0.0,
+    "gradient_norm": 4.032510581028861e-09,
+    "projected_gradient_residual": 4.032510581028861e-09,
+    "objective_recomputed": 16.619727605397294,
+    "objective_consistency_error": 0.0,
+    "objective_consistency_tolerance": 1.6619727605397294e-09,
+    "diagnostic_error": null,
+    "failure_reasons": []
+  },
+  "accepted": true
+}
