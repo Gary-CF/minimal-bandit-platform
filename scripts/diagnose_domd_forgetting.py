@@ -47,20 +47,17 @@ def run(out):
             target = out / "source" / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(root / name, target)
-
         X = np.random.default_rng(config["feature_seed"]).normal(size=(K, d))
         X /= np.linalg.norm(X, axis=1, keepdims=True)
         before = np.array(config["theta_before"])
         after = np.array(config["theta_after"])
         per_seed = []
-
         for scenario in ("stationary", "abrupt", "drift"):
             weight = (np.zeros(T) if scenario == "stationary" else
                       (np.arange(T) >= 500).astype(float) if scenario == "abrupt"
                       else np.linspace(0.0, 1.0, T))
             truth = before + weight[:, None] * (after - before)
             probabilities = sigmoid(truth @ X.T)
-
             for seed in seeds:
                 action_seed, reward_seed = np.random.SeedSequence(seed).spawn(2)
                 actions = np.random.default_rng(action_seed).integers(K, size=T)
@@ -68,12 +65,10 @@ def run(out):
                     1, probabilities[np.arange(T), actions])
                 np.savez_compressed(out / f"inputs_{scenario}_{seed}.npz",
                                     X=X, truth=truth, actions=actions, rewards=rewards)
-
                 models = [OnlineLogisticDOMD(d, g, 3.0, 126.0, 2.0) for g in gammas]
                 reference = OnlineLogisticOMD(d, 3.0, 126.0, 2.0)
                 errors = np.empty((T, len(gammas)))
                 rows = []
-
                 for t, (action, reward) in enumerate(zip(actions, rewards)):
                     x, y = X[action], int(reward)
                     for j, model in enumerate(models):
@@ -82,11 +77,9 @@ def run(out):
                         errors[t, j] = error
                         rows.append(dict(step=t + 1, gamma=gammas[j], rmse_pre=error))
                         model.update(x, y)
-
                     reference.update(x, y)
                     np.testing.assert_array_equal(models[0].theta, reference.theta)
                     np.testing.assert_array_equal(models[0].H, reference.H)
-
                 write_csv(out / f"metrics_{scenario}_{seed}.csv", rows)
                 windows = {"all": slice(0, T)}
                 if scenario == "abrupt":
@@ -96,7 +89,6 @@ def run(out):
                                         f"late{width}": slice(T - width, T)})
                 else:
                     windows["late200"] = slice(T - 200, T)
-
                 for window, indices in windows.items():
                     means = errors[indices].mean(axis=0)
                     for j, gamma in enumerate(gammas):
@@ -104,9 +96,7 @@ def run(out):
                                              gamma=gamma, window=window,
                                              rmse=float(means[j]),
                                              diff_omd=float(means[j] - means[0])))
-                print(f"STREAM PASS: {scenario} seed={seed}; gamma=1 matches OMD",
-                      flush=True)
-
+                print(f"STREAM PASS: {scenario} seed={seed}; gamma=1 matches OMD", flush=True)
         write_csv(out / "per_seed.csv", per_seed)
         summary = []
         keys = dict.fromkeys((r["scenario"], r["window"], r["gamma"]) for r in per_seed)
@@ -119,7 +109,6 @@ def run(out):
                 row[f"mean_{metric}"] = float(values.mean())
                 row[f"sem_{metric}"] = float(values.std(ddof=1) / np.sqrt(len(values)))
             summary.append(row)
-
         write_csv(out / "summary.csv", summary)
         print("scenario    window    gamma    RMSE       paired diff +/- SEM")
         for r in summary:
@@ -127,7 +116,6 @@ def run(out):
                 print(f"{r['scenario']:11} {r['window']:9} {r['gamma']:.3f}  "
                       f"{r['mean_rmse']:.6f}  "
                       f"{r['mean_diff_omd']:+.6f} +/- {r['sem_diff_omd']:.6f}")
-
         status.write_text(json.dumps(dict(state="complete", fixed_streams=15,
                                          estimator_runs=90, equality_checks=15000)))
         print(f"DIAGNOSTIC PASS: 15 fixed streams; 90 estimator runs | {out}")

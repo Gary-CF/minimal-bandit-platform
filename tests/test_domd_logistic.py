@@ -12,28 +12,19 @@ def reference_step(theta, H, x, y, gamma, eta, l2, radius):
     A = gamma * H + (1 - gamma) * l2 * np.eye(len(theta))
     p = 1 / (1 + np.exp(-(x @ theta)))
     g, G = (p - y) * x, p * (1 - p) * np.outer(x, x)
-
     def objective(v):
         z = radius * v - theta
         return g @ z + 0.5 * z @ G @ z + z @ A @ z / (2 * eta)
-
     def gradient(v):
         z = radius * v - theta
         return radius * (g + G @ z + A @ z / eta)
-
-    result = minimize(
-        objective, theta / radius, jac=gradient, method="SLSQP",
-        constraints=[{
-            "type": "ineq",
-            "fun": lambda v: 1 - v @ v,
-            "jac": lambda v: -2 * v,
-        }],
-        options={"ftol": 1e-10, "maxiter": 500},
-    )
+    result = minimize(objective, theta / radius, jac=gradient, method="SLSQP",
+        constraints=[{"type": "ineq", "fun": lambda v: 1-v@v,
+                      "jac": lambda v: -2*v}], options={"ftol": 1e-10, "maxiter": 500})
     assert result.success, result.message
     candidate = radius * result.x
     p_new = 1 / (1 + np.exp(-(x @ candidate)))
-    return candidate, A + p_new * (1 - p_new) * np.outer(x, x)
+    return candidate, A + p_new * (1-p_new) * np.outer(x, x)
 
 
 @pytest.mark.parametrize("radius", [0.2, 2.0])
@@ -85,16 +76,14 @@ def test_explicit_discounted_curvature_and_floor():
         x = np.eye(2)[i % 2]
         model.update(x, i % 2)
         p = 1 / (1 + np.exp(-(x @ model.theta)))
-        history.append(p * (1 - p) * np.outer(x, x))
-        expected = .5 * np.eye(2) + sum(
-            .8**(i - j) * G for j, G in enumerate(history)
-        )
+        history.append(p * (1-p) * np.outer(x, x))
+        expected = .5 * np.eye(2) + sum(.8**(i-j) * G for j, G in enumerate(history))
         np.testing.assert_allclose(model.H, expected, atol=1e-12, rtol=0)
     H = model.H.copy()
     theta = model.theta.copy()
     model.update(np.zeros(2), 0)
     np.testing.assert_allclose(model.theta, theta, rtol=0, atol=2e-10)
-    np.testing.assert_allclose(model.H - .5*np.eye(2), .8*(H - .5*np.eye(2)))
+    np.testing.assert_allclose(model.H-.5*np.eye(2), .8*(H-.5*np.eye(2)))
 
 
 def test_failed_update_preserves_state(monkeypatch):
@@ -103,10 +92,8 @@ def test_failed_update_preserves_state(monkeypatch):
     theta, H, n = model.theta.copy(), model.H.copy(), model.completed_steps
     with pytest.raises(ValueError):
         model.update(np.array([1., 0.]), 2)
-
     def fail(*args, **kwargs):
         raise RuntimeError("injected solver failure")
-
     monkeypatch.setattr(domd_module, "omd_step", fail)
     with pytest.raises(RuntimeError, match="injected"):
         model.update(np.array([1., 0.]), 0)
@@ -126,20 +113,13 @@ def test_paper_policy_radius_and_selection():
     model = policy.estimator
     assert model.eta == 3.
     assert model.l2 == pytest.approx(48 * 3 * 3 / 7)
-    features = np.eye(3)
+    features = np.array([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
     for n in range(10):
         effective = sum(.98**j for j in range(n))
-        beta2 = (
-            4*model.l2*4
-            + 30*np.log(np.pi**2*(n + 1)**2/(3*.05))
-            + 2*3*9.5*3*np.log(1 + .25*effective/(3*model.l2))
-        )
+        beta2 = (4*model.l2*4 + 30*np.log(np.pi**2*(n+1)**2/(3*.05))
+                 + 2*3*9.5*3*np.log(1+.25*effective/(3*model.l2)))
         assert policy.confidence_radius()**2 == pytest.approx(beta2)
-        scores = [
-            x @ model.theta
-            + np.sqrt(beta2 * (x @ np.linalg.solve(model.H, x)))
-            for x in features
-        ]
+        scores = [x @ model.theta + np.sqrt(beta2 * (x @ np.linalg.solve(model.H, x))) for x in features]
         assert policy.select_action(features) == int(np.argmax(scores))
         policy.update(features[n % 3], n % 2)
     with pytest.raises(ValueError):

@@ -25,30 +25,22 @@ def _solve(X, y, weights, ridge, start, tol, max_iter):
         if not (np.isfinite(value) and np.isfinite(gradient).all()
                 and np.isfinite(hessian).all()):
             raise RuntimeError("Nonfinite MLE objective or derivatives")
-
         grad_inf = float(np.linalg.norm(gradient, ord=np.inf))
         if grad_inf <= tol:
             np.linalg.cholesky(hessian)
             return theta, hessian, dict(
-                objective=value,
-                grad_inf=grad_inf,
-                newton_steps=iteration,
-                parameter_error_bound=float(np.linalg.norm(gradient) / ridge),
-            )
+                objective=value, grad_inf=grad_inf, newton_steps=iteration,
+                parameter_error_bound=float(np.linalg.norm(gradient) / ridge))
         if iteration == max_iter:
             break
-
         direction = np.linalg.solve(hessian, gradient)
         decrement = float(gradient @ direction)
         if not np.isfinite(decrement) or decrement <= 0:
             raise RuntimeError("Invalid Newton direction")
-
         step = 1.0
         for _ in range(60):
             candidate = theta - step * direction
-            new_value, new_gradient, _ = _terms(
-                candidate, X, y, weights, ridge
-            )
+            new_value, new_gradient, _ = _terms(candidate, X, y, weights, ridge)
             if (np.isfinite(new_value) and np.isfinite(new_gradient).all()
                     and (new_value <= value - 1e-4 * step * decrement
                          or np.linalg.norm(new_gradient, ord=np.inf) <= tol)):
@@ -57,10 +49,7 @@ def _solve(X, y, weights, ridge, start, tol, max_iter):
             step *= 0.5
         else:
             raise RuntimeError("MLE line search failed")
-
-    raise RuntimeError(
-        f"MLE did not converge: gradient infinity norm={grad_inf:g}"
-    )
+    raise RuntimeError(f"MLE did not converge: gradient infinity norm={grad_inf:g}")
 
 
 class DiscountedLogisticMLE:
@@ -69,7 +58,6 @@ class DiscountedLogisticMLE:
             if (isinstance(value, (bool, np.bool_))
                     or not isinstance(value, (int, np.integer)) or value <= 0):
                 raise ValueError(f"{name} must be a positive integer")
-
         for name, value in (("gamma", gamma), ("ridge", ridge), ("tol", tol)):
             if (isinstance(value, (bool, np.bool_))
                     or not isinstance(value, (int, float, np.integer, np.floating))
@@ -77,7 +65,6 @@ class DiscountedLogisticMLE:
                 raise ValueError(f"{name} must be a positive finite scalar")
         if gamma > 1:
             raise ValueError("gamma must be in (0, 1]")
-
         self.gamma, self.ridge, self.tol = float(gamma), float(ridge), float(tol)
         self.max_iter = int(max_iter)
         self.theta = np.zeros(dimension)
@@ -95,22 +82,16 @@ class DiscountedLogisticMLE:
         x = np.asarray(x)
         if (x.shape != self.theta.shape or x.dtype.kind not in "fiu"
                 or not np.isfinite(x).all()):
-            raise ValueError(
-                "x must be a finite real vector of the declared dimension"
-            )
+            raise ValueError("x must be a finite real vector of the declared dimension")
         if (isinstance(y, (bool, np.bool_))
                 or not isinstance(y, (int, float, np.integer, np.floating))
                 or y not in (0, 1)):
             raise ValueError("y must be 0 or 1")
-
         X_next = np.vstack((self.X, x.astype(float)))
         y_next = np.append(self.y, float(y))
         weights = self.gamma ** np.arange(len(y_next) - 1, -1, -1)
-        theta, H, info = _solve(
-            X_next, y_next, weights, self.ridge,
-            self.theta, self.tol, self.max_iter
-        )
-
+        theta, H, info = _solve(X_next, y_next, weights, self.ridge,
+                               self.theta, self.tol, self.max_iter)
         # Commit only after a successful solve; retain all historical samples.
         self.X, self.y, self.theta, self.H = X_next, y_next, theta, H
         self.completed_steps += 1

@@ -1,0 +1,12 @@
+{
+  "blas_threads": 1,
+  "git_head": "409147b303601af64cbc7fe1a81bf18d7b7dd03f",
+  "git_status": "?? algorithms/hvt_ucb.py\n?? bandit_v2_2_remaining_all.zip\n?? docs/v2_2_formula_map.md\n?? docs/v2_2_remaining_experiments.md\n?? envs/remaining_bandit_tasks.py\n?? requirements-v2_2-remaining.txt\n?? scripts/remaining_experiments.py\n?? scripts/report_frozen_logistic_test.py\n?? scripts/reproduce_v2_2.py\n?? scripts/run_remaining_v2_2.py\n?? tests/test_remaining_v2_2.py",
+  "jobs": 4,
+  "matplotlib": "3.11.1",
+  "numpy": "2.5.2",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "scipy": "1.18.1",
+  "started_utc": "2026-11-09T10:53:45Z"
+}

@@ -1,0 +1,13 @@
+{
+  "frozen_test_aggregate.json": "d17183f9b7e753b1e5070ad69673568de6c754a4a61da96a4fc37d549b6d2681",
+  "frozen_test_audit.json": "77ea6c33e23dd7df1fee488baf815753f58e448f6aac9b7c1e7196f4ea8c8b77",
+  "frozen_test_by_feature.json": "766d0ffc4d555c39c6adcef9cc8bea247a8098aa2894e42785cb73d72049bb8f",
+  "release_source_sha256.json": "34159484b8d3b226580e631840b94b2b598532db1ad6122652ea08fd8f60343b",
+  "report.md": "7c9a5781a306c9172ea17331c569d48727fb9afe4f461291df5424ccf7ce6087",
+  "source_index.json": "364e0464c9ec191ccfe7669721e2a16ea9bae4c90075fa5146ea2540207b70eb",
+  "supplement_aggregate.csv": "e8130e7e2610bbecd8385afdb6db539dbedbb3f2244b0e45096e7f0c307a8755",
+  "supplement_aggregate.json": "f6b7cb6321192a22f308dedd3b56ba3d03c73f75d009dc818563c5e63e1f97bb",
+  "supplement_by_feature.csv": "ad7ad07bf64295fe0b923ea118aa7c9758df20dda8ec8b8911a45a4e83a60753",
+  "supplement_environment.json": "f794fe2dfcdbe2edb193aed951a3dd7a4f7e6e9411788f30aeaefa4203f0b773",
+  "verification.json": "d4fd2726b45feaf936ed92cbca82d043fba3173e25624b09b43681bc285073c6"
+}

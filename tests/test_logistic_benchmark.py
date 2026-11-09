@@ -4,10 +4,8 @@ import pytest
 from scripts.logistic_benchmark import ALGORITHMS, make_path, run_episode
 from scripts.d12_logistic_stress import run_episode as old_episode
 
-
 FEATURES = np.array([[1., 0.], [0., 1.], [-1., 0.], [0., -1.]])
 BEFORE, AFTER = [1., -0.5], [-1., 0.5]
-
 
 @pytest.mark.parametrize("name", ALGORITHMS)
 @pytest.mark.parametrize("scenario", ["stationary", "abrupt", "drift"])
@@ -25,7 +23,6 @@ def test_replay_and_independent_regret(name, scenario):
     if name in ("random", "ucb1", "sw_ucb", "discounted_ucb"):
         assert all(r["prediction_rmse_pre"] is None for r in rows)
 
-
 @pytest.mark.parametrize("name", ["random", "omd_paper_v2_literal"])
 @pytest.mark.parametrize("scenario", ["abrupt", "drift"])
 def test_matches_old_episode(name, scenario, tmp_path):
@@ -39,7 +36,6 @@ def test_matches_old_episode(name, scenario, tmp_path):
             assert a[key] == b[key]
         if name != "random":
             assert a["prediction_rmse_pre"] == b["prediction_rmse_pre"]
-
 
 def test_boundary_and_pre_update_prediction():
     path = make_path("abrupt", 6, BEFORE, AFTER, change_step=4)

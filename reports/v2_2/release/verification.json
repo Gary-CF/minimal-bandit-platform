@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "source_label": "本机运行归档",
+  "verified_at_utc": "2026-11-09T11:13:47.039515+00:00",
+  "tests_passed": 607,
+  "frozen_episodes": 315,
+  "smoke_tasks": 71,
+  "supplemental_tasks": 1332,
+  "counts": {
+    "logistic": 882,
+    "heavy_fixed": 81,
+    "heavy_closed": 324,
+    "cost": 45
+  },
+  "checks": [
+    {
+      "check": "pytest",
+      "status": "passed",
+      "log_sha256": "92e39451f13aef94a5c3a3d3fef179c648722a4b2c06035c933468da3f5cc3b0"
+    },
+    {
+      "check": "frozen_verify",
+      "status": "passed",
+      "log_sha256": "8ff7989e38d61a0ee0957e88d9b594e5310121dfcbf57a23143760cb7853c1e8"
+    },
+    {
+      "check": "smoke_verify",
+      "status": "passed",
+      "log_sha256": "c1d8df2223c9c735282b9fd1f04952baba5e79ee7c6ffb9fbc20ccd8edbceaf7"
+    },
+    {
+      "check": "full_verify",
+      "status": "passed",
+      "log_sha256": "6fec12aec897654a22444c6f98f3798adbe74bb850a464e13d4feca0f43c705a"
+    }
+  ],
+  "source_snapshot_note": "Original run sources remain in source archives; release code includes closeout additions"
+}
