@@ -1,0 +1,39 @@
+{
+  "stage": "development_not_tuned_test",
+  "dimension": 3,
+  "num_arms": 10,
+  "feature_seed": 20261001,
+  "theta_before": [
+    1.0,
+    -0.5,
+    0.75
+  ],
+  "theta_after": [
+    -1.0,
+    0.5,
+    -0.75
+  ],
+  "radius": 2.0,
+  "delta": 0.05,
+  "algorithms": [
+    "random",
+    "ucb1",
+    "sw_ucb",
+    "discounted_ucb",
+    "omd_paper_v2_literal"
+  ],
+  "scenarios": [
+    "stationary",
+    "abrupt",
+    "drift"
+  ],
+  "log_every": 50,
+  "horizon": 200,
+  "seeds": [
+    0,
+    1
+  ],
+  "change_step": 101,
+  "window_size": 50,
+  "gamma": 0.98
+}
